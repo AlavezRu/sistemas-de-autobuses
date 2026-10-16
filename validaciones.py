@@ -44,6 +44,27 @@ def validar_fecha(fecha_viaje):
     return True, dia.strftime(FORMATO_VIAJE)
 
 
+def validar_ruta(clave):
+    clave = limpiar(clave).lower()
+    if not clave:
+        return False, 'Elige la ruta del viaje.'
+    if not base_datos.obtener_ruta(clave):
+        return False, f'Esa ruta no esta entre las que salen de {base_datos.ORIGEN}.'
+    return True, clave
+
+
+def validar_parada(clave, ruta):
+    clave = limpiar(clave).lower()
+    if not clave:
+        return False, 'Elige en que punto te bajas.'
+    if not base_datos.obtener_parada(clave):
+        return False, 'Ese punto no esta en las rutas de la linea.'
+    if not base_datos.obtener_parada(clave, ruta):
+        return False, (f'{base_datos.nombre_de_parada(clave)} no esta en el camino '
+                       f'a {base_datos.nombre_de_ruta(ruta)}.')
+    return True, clave
+
+
 def validar_asiento(asiento):
     try:
         numero = int(str(asiento).strip())
@@ -55,9 +76,19 @@ def validar_asiento(asiento):
 
 
 def validar_venta(datos):
-    # revisa los tres campos de una vez y devuelve (valores limpios, errores por campo)
+    # revisa todos los campos de una vez y devuelve (valores limpios, errores por campo)
     valores = {}
     errores = {}
+
+    ok, resultado = validar_ruta(datos.get('ruta'))
+    valores['ruta'] = resultado if ok else limpiar(datos.get('ruta'))
+    if not ok:
+        errores['ruta'] = resultado
+
+    ok, resultado = validar_parada(datos.get('parada'), valores['ruta'])
+    valores['parada'] = resultado if ok else limpiar(datos.get('parada'))
+    if not ok and 'ruta' not in errores:  # si la ruta esta mal, ese es el error que importa
+        errores['parada'] = resultado
 
     ok, resultado = validar_pasajero(datos.get('pasajero'))
     valores['pasajero'] = resultado if ok else limpiar(datos.get('pasajero'))
@@ -74,8 +105,10 @@ def validar_venta(datos):
     if not ok:
         errores['asiento'] = resultado
 
-    # el asiento ocupado solo se puede revisar si la fecha y el asiento son validos
-    if not errores and base_datos.esta_ocupado(valores['asiento'], valores['fecha_viaje']):
-        errores['asiento'] = f'El asiento {valores["asiento"]} ya esta vendido para ese dia.'
+    # el asiento ocupado solo se puede revisar si la ruta, la fecha y el asiento son validos
+    if not errores and base_datos.esta_ocupado(
+            valores['asiento'], valores['fecha_viaje'], valores['ruta']):
+        errores['asiento'] = (f'El asiento {valores["asiento"]} ya esta vendido '
+                              f'para el viaje a {base_datos.nombre_de_ruta(valores["ruta"])} de ese dia.')
 
     return valores, errores

@@ -16,10 +16,11 @@ def dia_maximo():  # un ano hacia adelante, igual que en validaciones.py
     return (date.today() + timedelta(days=365)).strftime(validaciones.FORMATO_VIAJE)
 
 
-def mapa_de_asientos(fecha_viaje):
-    # arma la lista de asientos con su numero y si esta libre u ocupado;
+def mapa_de_asientos(fecha_viaje, ruta):
+    # arma la lista de asientos con su numero y si esta libre u ocupado; cada ruta
+    # lleva su propio autobus, asi que se necesitan la fecha y el destino.
     # se usa tanto en la pagina como en la respuesta de /api/asientos
-    ocupados = base_datos.asientos_ocupados(fecha_viaje) if fecha_viaje else {}
+    ocupados = base_datos.asientos_ocupados(fecha_viaje, ruta) if fecha_viaje and ruta else {}
     asientos = []
     for numero in range(1, base_datos.TOTAL_ASIENTOS + 1):
         asientos.append({
@@ -30,34 +31,42 @@ def mapa_de_asientos(fecha_viaje):
     return asientos
 
 
-@app.route('/')  # pagina de inicio: la bienvenida
+@app.route('/')  # pagina de inicio: la bienvenida y el cuadro de rutas
 def index():
-    vendidos = base_datos.contar_boletos()
-    return render_template('index.html', vendidos=vendidos,
-                           total_asientos=base_datos.TOTAL_ASIENTOS)
+    return render_template('index.html',
+                           vendidos=base_datos.contar_boletos(),
+                           total_asientos=base_datos.TOTAL_ASIENTOS,
+                           origen=base_datos.ORIGEN,
+                           rutas=base_datos.lista_de_rutas(),
+                           total_paradas=len(base_datos.PARADAS),
+                           ventas_por_ruta=base_datos.boletos_por_ruta())
 
 
-@app.route('/venta', methods=['GET', 'POST'])  # vender boleto: fecha -> asiento -> nombre
+@app.route('/venta', methods=['GET', 'POST'])  # vender: ruta -> parada -> fecha -> asiento -> nombre
 def venta():
-    valores = {'pasajero': '', 'fecha_viaje': '', 'asiento': ''}
+    valores = {'pasajero': '', 'fecha_viaje': '', 'asiento': '', 'ruta': '', 'parada': ''}
     errores = {}
 
     if request.method == 'POST':
         valores, errores = validaciones.validar_venta(request.form)
         if not errores:
             id_boleto = base_datos.guardar_boleto(
-                valores['pasajero'], valores['asiento'], valores['fecha_viaje'])
+                valores['pasajero'], valores['asiento'],
+                valores['fecha_viaje'], valores['parada'])
             if id_boleto:  # se vendio: se pasa a la lista con el boleto resaltado
                 return redirect(url_for('boletos', nuevo=id_boleto))
             # si llego hasta aqui, alguien mas aparto el asiento mientras se llenaba el nombre
-            errores['asiento'] = 'Ese asiento se acaba de vender, elige otro.'
+            errores['asiento'] = 'Ese asiento se acaba de vender, elige otro.'  # alguien mas lo aparto
 
-    # si hubo errores se regresa el formulario con la fecha y el asiento que ya se habian escogido
+    # si hubo errores se regresa el formulario con lo que ya se habia escogido
     fecha_elegida = valores['fecha_viaje'] if not errores.get('fecha_viaje') else ''
+    ruta_elegida = valores['ruta'] if not errores.get('ruta') else ''
     return render_template('venta.html', valores=valores, errores=errores,
-                           asientos=mapa_de_asientos(fecha_elegida),
+                           asientos=mapa_de_asientos(fecha_elegida, ruta_elegida),
                            filas=base_datos.FILAS, por_fila=base_datos.POR_FILA,
                            total_asientos=base_datos.TOTAL_ASIENTOS,
+                           origen=base_datos.ORIGEN,
+                           rutas=base_datos.lista_de_rutas(),
                            hoy=dia_de_hoy(), maximo=dia_maximo())
 
 
@@ -65,7 +74,9 @@ def venta():
 def boletos():
     nuevo = request.args.get('nuevo', type=int)  # el boleto que se acaba de vender
     return render_template('boletos.html', boletos=base_datos.obtener_boletos(),
-                           nuevo=base_datos.obtener_boleto(nuevo) if nuevo else None)
+                           nuevo=base_datos.obtener_boleto(nuevo) if nuevo else None,
+                           origen=base_datos.ORIGEN,
+                           total=base_datos.total_cobrado())
 
 
 @app.route('/cancelar/<int:id_boleto>', methods=['POST'])  # el boton de cada renglon
@@ -74,14 +85,19 @@ def cancelar(id_boleto):
     return redirect(url_for('boletos'))
 
 
-@app.route('/api/asientos')  # la pagina de venta la llama cuando se elige una fecha
+@app.route('/api/asientos')  # la venta la llama al elegir el destino y la fecha
 def api_asientos():
-    ok, resultado = validaciones.validar_fecha(request.args.get('fecha'))
+    ok, ruta = validaciones.validar_ruta(request.args.get('ruta'))
     if not ok:
-        return jsonify({'ok': False, 'error': resultado, 'asientos': []}), 400
-    asientos = mapa_de_asientos(resultado)
+        return jsonify({'ok': False, 'error': ruta, 'asientos': []}), 400
+    ok, fecha = validaciones.validar_fecha(request.args.get('fecha'))
+    if not ok:
+        return jsonify({'ok': False, 'error': fecha, 'asientos': []}), 400
+    asientos = mapa_de_asientos(fecha, ruta)
     libres = sum(1 for asiento in asientos if not asiento['ocupado'])
-    return jsonify({'ok': True, 'fecha': resultado, 'asientos': asientos, 'libres': libres})
+    return jsonify({'ok': True, 'fecha': fecha, 'ruta': ruta,
+                    'destino': base_datos.nombre_de_ruta(ruta),
+                    'asientos': asientos, 'libres': libres})
 
 
 base_datos.crear_tabla()  # si el archivo boletos.db no existe, se crea al arrancar

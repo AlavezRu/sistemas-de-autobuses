@@ -7,32 +7,75 @@
 <section class="panel portada">
     <h2>Bienvenido</h2>
     <p class="bienvenida">
-        Aparta tu lugar en el autobús en unos cuantos clics: eliges el día del viaje,
-        escoges tu asiento en el mapa del autobús y escribes el nombre del pasajero.
+        Aparta tu lugar en el autobús en unos cuantos clics: escoges la ruta y el punto donde te
+        bajas, el día del viaje, tu asiento en el mapa del autobús y el nombre del pasajero.
+        Hay salidas todos los días.
     </p>
 
     <div class="datos-linea">
+        <div><b>{{ rutas|length }}</b><p>Rutas desde {{ origen }}</p></div>
+        <div><b>{{ total_paradas }}</b><p>Puntos donde para</p></div>
         <div><b>{{ total_asientos }}</b><p>Asientos por autobús</p></div>
         <div><b>{{ vendidos }}</b><p>Boletos vendidos</p></div>
-        <div><b>Hoy</b><p>Salidas todos los días</p></div>
     </div>
 
     <a class="boton enlace-boton" href="{{ url_for('venta') }}">Comprar mi boleto</a>
 </section>
 
-<!-- Los tres pasos de la venta -->
+<!-- Las rutas con sus puntos intermedios; todas salen de Teposcolula -->
+<section class="panel">
+    <div class="encabezado-panel">
+        <h2>Rutas y precios</h2>
+        <span class="enlace en-linea">Salidas de {{ origen }}</span>
+    </div>
+
+    <div class="rutas">
+        {% for ruta in rutas %}
+        <div class="ruta">
+            <span class="ruta-destino">{{ ruta.destino }}</span>
+            <span class="ruta-camino">desde {{ origen }}</span>
+
+            <!-- el precio de cada punto es lo que se cobra desde Teposcolula hasta ahi -->
+            <ul class="lista-paradas">
+                {% for parada in ruta.paradas %}
+                <li>
+                    <span>{{ parada.nombre }}</span>
+                    <b>${{ parada.precio }}</b>
+                </li>
+                {% endfor %}
+            </ul>
+
+            <span class="ruta-cuenta">{{ ventas_por_ruta[ruta.clave] }} boleto(s) vendido(s)</span>
+        </div>
+        {% endfor %}
+    </div>
+
+    <p class="nota">Cada ruta lleva su propio autobús de {{ total_asientos }} asientos, así que
+        los lugares de una corrida no le quitan lugares a las otras. Quien se baja en un punto
+        intermedio ocupa un asiento de toda la corrida.</p>
+</section>
+
+<!-- Los cinco pasos de la venta -->
 <section class="panel">
     <h2>¿Cómo se compra un boleto?</h2>
     <div class="paso-info">
-        <b>1. La fecha del viaje</b>
+        <b>1. La ruta</b>
+        <p>Se escoge una de las tres corridas que salen de {{ origen }}.</p>
+    </div>
+    <div class="paso-info">
+        <b>2. El punto donde se baja</b>
+        <p>Se escoge dónde se baja el pasajero; ahí mismo se ve el pasaje que le toca.</p>
+    </div>
+    <div class="paso-info">
+        <b>3. La fecha del viaje</b>
         <p>Se elige el día en el calendario; no se aceptan días que ya pasaron.</p>
     </div>
     <div class="paso-info">
-        <b>2. El asiento</b>
-        <p>Se muestra el mapa del autobús con los lugares libres de ese día; los ya vendidos no se pueden escoger.</p>
+        <b>4. El asiento</b>
+        <p>Se muestra el mapa del autobús de esa corrida con los lugares libres de ese día; los ya vendidos no se pueden escoger.</p>
     </div>
     <div class="paso-info">
-        <b>3. El pasajero</b>
+        <b>5. El pasajero</b>
         <p>Solo se escribe el nombre y el boleto queda apartado.</p>
     </div>
 </section>

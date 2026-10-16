@@ -184,7 +184,7 @@ body {
 /* Renglon con los datos de la linea, en la portada */
 .datos-linea {
     display: grid;
-    grid-template-columns: repeat(3, 1fr);
+    grid-template-columns: repeat(4, 1fr);
     gap: 14px;
     margin-bottom: 22px;
 }
@@ -199,6 +199,141 @@ body {
 
 .datos-linea b { color: #5a3a22; font-size: 30px; }
 .datos-linea p { color: #8b6b45; font-size: 13px; margin-top: 4px; }
+
+/* Las tres rutas: en el inicio son un cuadro y en la venta son los botones
+   del primer paso (la misma tarjeta, pero la del formulario se puede escoger) */
+.rutas {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 14px;
+}
+
+.ruta {
+    position: relative;
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+    background-color: #f3e7d5;
+    border: 2px solid #c9a67c;
+    border-radius: 12px;
+    padding: 16px 18px;
+}
+
+.ruta-destino { color: #5a3a22; font-size: 19px; font-weight: 700; }
+.ruta-camino  { color: #8b6b45; font-size: 12px; }
+.ruta-precio  { color: #9c6034; font-size: 22px; font-weight: 700; margin-top: 6px; }
+.ruta-cuenta  { color: #8b6b45; font-size: 12px; margin-top: 4px; }
+
+/* La tarjeta del formulario de venta: se puede picar y se marca al escogerla */
+label.ruta {
+    cursor: pointer;
+    transition: transform 0.2s, border-color 0.2s, background 0.2s, box-shadow 0.2s;
+}
+
+label.ruta input {  /* el radio de verdad no se ve; la tarjeta completa es el boton */
+    position: absolute;
+    opacity: 0;
+    width: 0;
+    height: 0;
+}
+
+label.ruta:hover {
+    border-color: #9c6034;
+    background-color: #e9dac2;
+    transform: translateY(-2px);
+}
+
+label.ruta.elegida {  /* el destino escogido, en verde como el asiento elegido */
+    border-color: #4f6e2e;
+    background-color: #e6edd8;
+    box-shadow: 0 6px 16px rgba(79, 110, 46, 0.25);
+}
+
+label.ruta.elegida .ruta-destino,
+label.ruta.elegida .ruta-precio { color: #4f6e2e; }
+
+/* El renglon que dice de donde sale el autobus */
+.nota-salida {
+    color: #8b6b45;
+    font-size: 13px;
+    margin-bottom: 12px;
+}
+
+.nota-salida b { color: #5a3a22; }
+
+/* La lista de puntos donde para el autobus, en el cuadro de rutas del inicio */
+.lista-paradas {
+    list-style: none;
+    margin: 10px 0 4px;
+    border-top: 1px dashed #c9a67c;
+}
+
+.lista-paradas li {
+    display: flex;
+    justify-content: space-between;
+    gap: 10px;
+    padding: 5px 0;
+    font-size: 13px;
+    color: #8b6b45;
+    border-bottom: 1px dashed #e3d5c0;
+}
+
+.lista-paradas li:last-child {  /* la punta de la ruta se ve mas fuerte */
+    border-bottom: none;
+    color: #5a3a22;
+    font-weight: 600;
+}
+
+.lista-paradas b { color: #9c6034; }
+
+/* Los puntos donde se baja el pasajero: el segundo paso de la venta.
+   Se dibujan los de las tres rutas y solo se ven los de la ruta escogida */
+.paradas {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 10px;
+}
+
+.paradas.oculto {  /* las paradas de las otras rutas */
+    display: none;
+}
+
+label.parada {
+    position: relative;
+    display: flex;
+    flex-direction: column;
+    cursor: pointer;
+    background-color: #fbf6ef;
+    border: 2px solid #c9a67c;
+    border-radius: 10px;
+    padding: 12px 14px;
+    transition: transform 0.2s, border-color 0.2s, background 0.2s, box-shadow 0.2s;
+}
+
+label.parada input {  /* el radio de verdad no se ve; la tarjeta es el boton */
+    position: absolute;
+    opacity: 0;
+    width: 0;
+    height: 0;
+}
+
+label.parada:hover {
+    border-color: #9c6034;
+    background-color: #f3e7d5;
+    transform: translateY(-2px);
+}
+
+label.parada.elegida {  /* el punto escogido, en verde como el asiento elegido */
+    border-color: #4f6e2e;
+    background-color: #e6edd8;
+    box-shadow: 0 6px 16px rgba(79, 110, 46, 0.25);
+}
+
+.parada-nombre { color: #5a3a22; font-size: 15px; font-weight: 600; }
+.parada-precio { color: #9c6034; font-size: 20px; font-weight: 700; margin-top: 2px; }
+
+label.parada.elegida .parada-nombre,
+label.parada.elegida .parada-precio { color: #4f6e2e; }
 
 /* Los tres pasos explicados en el inicio */
 .paso-info {
@@ -402,7 +537,7 @@ input[type="text"]:focus {
 /* Resumen de la venta antes de escribir el nombre */
 .resumen {
     display: grid;
-    grid-template-columns: repeat(2, 1fr);
+    grid-template-columns: repeat(4, 1fr);
     gap: 12px;
     margin-bottom: 18px;
 }
@@ -538,10 +673,120 @@ tbody tr.resaltado {  /* el boleto que se acaba de vender */
     color: #4f6e2e;
 }
 
+.txt-precio {
+    color: #9c6034;
+}
+
+.txt-corrida {  /* la ruta del autobus, debajo del punto donde se baja */
+    display: block;
+    color: #8b6b45;
+    font-size: 12px;
+}
+
+tfoot td {  /* el renglon del total cobrado */
+    background-color: #f3e7d5;
+    font-weight: 600;
+    border-bottom: none;
+}
+
+.pase-precio {
+    margin-top: 6px;
+    font-size: 20px !important;
+    font-weight: bold;
+}
+
 .vacio {
     text-align: center;
     color: #8b6b45;
     padding: 30px;
+}
+
+/* El recuadro que pregunta antes de guardar la venta: el velo oscurece la
+   pagina y encima queda el boleto con sus dos botones */
+.velo {
+    position: fixed;
+    top: 0;
+    right: 0;
+    bottom: 0;
+    left: 0;
+    z-index: 50;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 20px;
+    background-color: rgba(62, 39, 22, 0.55);
+    animation: velo-aparece 0.2s ease;
+}
+
+.velo.oculto {
+    display: none;
+}
+
+@keyframes velo-aparece {
+    from { opacity: 0; }
+    to   { opacity: 1; }
+}
+
+.dialogo {
+    width: 100%;
+    max-width: 520px;
+    background-color: #fbf6ef;
+    border-radius: 16px;
+    padding: 25px;
+    box-shadow: 0 18px 50px rgba(62, 39, 22, 0.45);
+    animation: dialogo-aparece 0.25s ease;
+}
+
+@keyframes dialogo-aparece {
+    from { opacity: 0; transform: translateY(14px) scale(0.97); }
+    to   { opacity: 1; transform: translateY(0) scale(1); }
+}
+
+.dialogo h3 {
+    color: #5a3a22;
+    font-size: 21px;
+    margin-bottom: 16px;
+    text-align: center;
+}
+
+.dialogo-botones {
+    display: flex;
+    gap: 12px;
+}
+
+.dialogo-botones .boton {
+    flex: 1;
+}
+
+.boton-suave {  /* el "no" del recuadro: discreto, para no competir con el "si" */
+    flex: none;
+    margin-top: 18px;
+    padding: 18px 20px;
+    border: 2px solid #c9a67c;
+    border-radius: 14px;
+    background-color: #f3e7d5;
+    color: #8b6b45;
+    font-size: 15px;
+    font-weight: 600;
+    cursor: pointer;
+    transition: background 0.2s, color 0.2s;
+}
+
+.boton-suave:hover {
+    background-color: #e9dac2;
+    color: #5a3a22;
+}
+
+/* El aviso de lo que falta escoger, arriba del boton de confirmar */
+.falta {
+    color: #8b6b45;
+    font-size: 13px;
+    margin-bottom: 10px;
+    min-height: 18px;  /* el hueco se guarda para que el boton no brinque */
+}
+
+.boton.apagado {  /* mientras falten datos se ve apagado, pero se puede picar */
+    opacity: 0.6;
 }
 
 .nota {
@@ -554,11 +799,17 @@ tbody tr.resaltado {  /* el boleto que se acaba de vender */
 /* En pantallas chicas todo se acomoda en una sola columna */
 @media (max-width: 700px) {
     .datos-linea,
+    .rutas,
+    .paradas,
     .resumen { grid-template-columns: 1fr; }
     .menu { flex-wrap: wrap; }
     .menu a { flex: 1 0 100%; }
     .pase { flex-direction: column; }
+    .dialogo-botones { flex-direction: column-reverse; }  /* el "si" queda abajo, a la mano */
+    .dialogo-botones .boton,
+    .boton-suave { width: 100%; margin-top: 0; }
+    .dialogo-botones { margin-top: 18px; }
     .pase-asiento { width: 100%; border-left: none; border-top: 3px dashed #fbf6ef; }
     .panel { overflow-x: auto; }
-    table { min-width: 620px; }
+    table { min-width: 760px; }
 }

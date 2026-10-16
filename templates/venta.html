@@ -5,7 +5,8 @@
 {% block contenido %}
 <section class="panel">
     <h2>Vender boleto</h2>
-    <p class="bienvenida">Reservar boletos en tres pasos: la fecha, el asiento y el nombre del pasajero.</p>
+    <p class="bienvenida">Reservar boletos en cinco pasos: la ruta, el punto donde se baja el
+        pasajero, la fecha, el asiento y el nombre.</p>
 
     {% if errores %}
         <p class="alerta">Revisa los datos: {{ errores.values()|join(' ') }}</p>
@@ -14,18 +15,62 @@
     <!-- Un solo formulario; los pasos se van descubriendo conforme se contesta -->
     <form method="POST" id="formulario" novalidate>
 
-        <!-- PASO 1: la fecha del viaje -->
+        <!-- PASO 1: la ruta; las tres salen de Teposcolula -->
         <div class="paso" id="paso1">
-            <div class="paso-titulo"><span class="numero">1</span> ¿Qué día es el viaje?</div>
+            <div class="paso-titulo"><span class="numero">1</span> ¿Qué ruta tomas?</div>
+            <p class="nota-salida">Las tres corridas salen de <b>{{ origen }}</b>.</p>
+
+            <div class="rutas">
+                {% for ruta in rutas %}
+                <label class="ruta {{ 'elegida' if valores.ruta == ruta.clave }}" data-ruta="{{ ruta.clave }}">
+                    <input type="radio" name="ruta" value="{{ ruta.clave }}"
+                           {{ 'checked' if valores.ruta == ruta.clave }}>
+                    <span class="ruta-destino">{{ ruta.destino }}</span>
+                    <span class="ruta-camino">desde {{ origen }}</span>
+                    <span class="ruta-precio">${{ ruta.desde }} a ${{ ruta.precio }}</span>
+                    <span class="ruta-cuenta">{{ ruta.paradas|length }} puntos donde para</span>
+                </label>
+                {% endfor %}
+            </div>
+            {% if errores.ruta %}<p class="error">{{ errores.ruta }}</p>{% endif %}
+        </div>
+
+        <!-- PASO 2: en que punto de la ruta se baja; ese punto pone el precio.
+             Se dibujan las paradas de las tres rutas y solo se ve la de la ruta escogida -->
+        <div class="paso {{ '' if valores.ruta and not errores.ruta else 'oculto' }}" id="paso2">
+            <div class="paso-titulo"><span class="numero">2</span> ¿Dónde te bajas?</div>
+            <p class="nota-salida">El pasaje se cuenta desde <b>{{ origen }}</b> hasta donde se baje el pasajero.</p>
+
+            {% for ruta in rutas %}
+            <div class="paradas {{ '' if valores.ruta == ruta.clave else 'oculto' }}" data-ruta="{{ ruta.clave }}">
+                {% for parada in ruta.paradas %}
+                <label class="parada {{ 'elegida' if valores.parada == parada.clave }}"
+                       data-parada="{{ parada.clave }}">
+                    <input type="radio" name="parada" value="{{ parada.clave }}"
+                           {{ 'checked' if valores.parada == parada.clave }}>
+                    <span class="parada-nombre">{{ parada.nombre }}</span>
+                    <span class="parada-precio">${{ parada.precio }}</span>
+                </label>
+                {% endfor %}
+            </div>
+            {% endfor %}
+            {% if errores.parada %}<p class="error">{{ errores.parada }}</p>{% endif %}
+        </div>
+
+        <!-- PASO 3: la fecha del viaje -->
+        <div class="paso {{ '' if valores.parada and not errores.parada and not errores.ruta else 'oculto' }}" id="paso3">
+            <div class="paso-titulo"><span class="numero">3</span> ¿Qué día es el viaje?</div>
             <label for="fecha_viaje">Fecha del viaje</label>
             <input type="date" id="fecha_viaje" name="fecha_viaje"
                    value="{{ valores.fecha_viaje }}" min="{{ hoy }}" max="{{ maximo }}" required>
             {% if errores.fecha_viaje %}<p class="error">{{ errores.fecha_viaje }}</p>{% endif %}
         </div>
 
-        <!-- PASO 2: el mapa del autobus; aparece cuando ya hay fecha -->
-        <div class="paso oculto" id="paso2">
-            <div class="paso-titulo"><span class="numero">2</span> Elige tu asiento</div>
+        <!-- PASO 4: el mapa del autobus; aparece cuando ya hay ruta, parada y fecha -->
+        <div class="paso oculto" id="paso4">
+            <div class="paso-titulo"><span class="numero">4</span> Elige tu asiento</div>
+            <p class="nota-salida">El autobús es de toda la corrida a <b id="autobus-destino">—</b>,
+                aunque el pasajero se baje antes: estos son sus lugares de ese día.</p>
 
             <div class="referencias">
                 <span><i class="muestra libre"></i> Libre</span>
@@ -45,13 +90,17 @@
             <input type="hidden" id="asiento" name="asiento" value="{{ valores.asiento }}">
         </div>
 
-        <!-- PASO 3: el nombre; aparece cuando ya se escogio el asiento -->
-        <div class="paso oculto" id="paso3">
-            <div class="paso-titulo"><span class="numero">3</span> ¿A nombre de quién?</div>
+        <!-- PASO 5: el nombre y el boton de la venta. Este paso NO se esconde, para
+             que el boton de confirmar siempre este a la vista; el aviso de abajo dice
+             lo que todavia falta escoger -->
+        <div class="paso" id="paso5">
+            <div class="paso-titulo"><span class="numero">5</span> Confirma la venta</div>
 
             <div class="resumen">
+                <div><p>Viaje</p><b id="resumen-viaje">—</b></div>
                 <div><p>Fecha del viaje</p><b id="resumen-fecha">—</b></div>
                 <div><p>Asiento</p><b id="resumen-asiento">—</b></div>
+                <div><p>Pasaje</p><b id="resumen-precio">—</b></div>
             </div>
 
             <label for="pasajero">Nombre del pasajero</label>
@@ -59,30 +108,85 @@
                    placeholder="Ejemplo: Mario Ruiz Alavez" maxlength="60" autocomplete="off" required>
             {% if errores.pasajero %}<p class="error">{{ errores.pasajero }}</p>{% endif %}
 
-            <button type="submit" class="boton">Vender boleto</button>
-            <p class="nota">El asiento se aparta hasta que se guarda el boleto.</p>
+            <p class="falta" id="falta"></p>
+            <button type="submit" class="boton" id="confirmar">Confirmar venta</button>
+            <p class="nota">Antes de guardarlo se pregunta una vez mas, con los datos del
+                boleto. El asiento se aparta hasta que se guarda.</p>
         </div>
     </form>
 </section>
 
+<!-- El recuadro que pregunta antes de guardar. Nace escondido, va fuera del
+     formulario y se llena con los datos del boleto en el momento de abrirlo.
+     Se ve igual que el pase de abordar que sale cuando ya se vendio -->
+<div class="velo oculto" id="velo">
+    <div class="dialogo" role="dialog" aria-modal="true" aria-labelledby="titulo-dialogo">
+        <h3 id="titulo-dialogo">¿Vender este boleto?</h3>
+
+        <div class="pase">
+            <div class="pase-datos">
+                <p>Pasajero</p><b id="ver-pasajero">—</b>
+                <p>Viaje</p><b id="ver-viaje">—</b>
+                <p>Fecha del viaje</p><b id="ver-fecha">—</b>
+                <p>Pasaje</p><b id="ver-precio">—</b>
+            </div>
+            <div class="pase-asiento">
+                <p>Asiento</p>
+                <span id="ver-asiento">—</span>
+                <p id="ver-corrida">—</p>
+            </div>
+        </div>
+
+        <div class="dialogo-botones">
+            <button type="button" class="boton" id="si-vender">Sí, vender el boleto</button>
+            <button type="button" class="boton-suave" id="no-vender">No, todavía no</button>
+        </div>
+    </div>
+</div>
+
 <script>
 const TOTAL = {{ total_asientos }};
 const POR_FILA = {{ por_fila }};
+const ORIGEN = {{ origen|tojson }};
+const RUTAS = {{ rutas|tojson }};  // las tres rutas con sus paradas y sus precios
+
+// el indice de todas las paradas juntas, para no andar buscando en cada ruta
+const PARADAS = {};
+RUTAS.forEach(ruta => ruta.paradas.forEach(parada => { PARADAS[parada.clave] = parada; }));
 
 const campoFecha   = document.getElementById('fecha_viaje');
 const campoAsiento = document.getElementById('asiento');
 const campoNombre  = document.getElementById('pasajero');
 const zonaAsientos = document.getElementById('asientos');
-const paso2 = document.getElementById('paso2');
-const paso3 = document.getElementById('paso3');
+const paso2 = document.getElementById('paso2');  // donde se baja
+const paso3 = document.getElementById('paso3');  // la fecha
+const paso4 = document.getElementById('paso4');  // el mapa del autobus
+const paso5 = document.getElementById('paso5');  // el nombre del pasajero
 const avisoLibres = document.getElementById('libres');
+const avisoFalta = document.getElementById('falta');
+const botonConfirmar = document.getElementById('confirmar');
+const resumenFecha = document.getElementById('resumen-fecha');
+const resumenAsiento = document.getElementById('resumen-asiento');
+const formulario = document.getElementById('formulario');
+const velo = document.getElementById('velo');          // el recuadro de confirmar
+const botonSi = document.getElementById('si-vender');
 
-// Le pregunta al servidor que asientos estan vendidos ese dia y los dibuja
+function valorMarcado(nombre) {  // lo que esta escogido de un grupo de radios
+    const marcado = document.querySelector('input[name="' + nombre + '"]:checked');
+    return marcado ? marcado.value : '';
+}
+
+// Le pregunta al servidor que asientos estan vendidos en esa corrida y los dibuja
 async function cargarAsientos(conservarAsiento) {
+    const ruta = valorMarcado('ruta');
     const fecha = campoFecha.value;
-    if (!fecha) { paso2.classList.add('oculto'); paso3.classList.add('oculto'); return; }
+    if (!ruta || !valorMarcado('parada') || !fecha) {
+        paso4.classList.add('oculto');
+        return;
+    }
 
-    const respuesta = await fetch('/api/asientos?fecha=' + encodeURIComponent(fecha));
+    const respuesta = await fetch('/api/asientos?fecha=' + encodeURIComponent(fecha) +
+                                  '&ruta=' + encodeURIComponent(ruta));
     const datos = await respuesta.json();
     if (!datos.ok) { avisoLibres.textContent = datos.error; return; }
 
@@ -109,8 +213,8 @@ async function cargarAsientos(conservarAsiento) {
     });
 
     avisoLibres.textContent = datos.libres + ' de ' + TOTAL + ' asientos libres';
-    paso2.classList.remove('oculto');
-    document.getElementById('resumen-fecha').textContent = fechaEnLetras(datos.fecha);
+    document.getElementById('autobus-destino').textContent = datos.destino;
+    paso4.classList.remove('oculto');
 
     // si se regreso del servidor con un asiento ya escogido, se vuelve a marcar
     const elegido = conservarAsiento ? parseInt(campoAsiento.value, 10) : NaN;
@@ -119,21 +223,94 @@ async function cargarAsientos(conservarAsiento) {
     if (botonElegido) { elegirAsiento(botonElegido, elegido, false); } else { olvidarAsiento(); }
 }
 
+function elegirRuta(moverPantalla = true, olvidarLaParada = true) {
+    const clave = valorMarcado('ruta');
+    if (!clave) { return; }
+
+    // la tarjeta marcada se resalta y las demas se apagan
+    document.querySelectorAll('.ruta').forEach(tarjeta =>
+        tarjeta.classList.toggle('elegida', tarjeta.dataset.ruta === clave));
+
+    // solo se ven las paradas de esta ruta; las de las otras ni se pueden mandar
+    document.querySelectorAll('.paradas').forEach(grupo => {
+        const esDeEstaRuta = grupo.dataset.ruta === clave;
+        grupo.classList.toggle('oculto', !esDeEstaRuta);
+        grupo.querySelectorAll('input').forEach(radio => { radio.disabled = !esDeEstaRuta; });
+    });
+
+    if (olvidarLaParada) { olvidarParada(); }
+    paso2.classList.remove('oculto');
+    if (moverPantalla) { paso2.scrollIntoView({ behavior: 'smooth', block: 'nearest' }); }
+}
+
+function elegirParada(moverPantalla = true) {
+    const parada = PARADAS[valorMarcado('parada')];
+    if (!parada) { return; }
+
+    document.querySelectorAll('.parada').forEach(tarjeta =>
+        tarjeta.classList.toggle('elegida', tarjeta.dataset.parada === parada.clave));
+
+    document.getElementById('resumen-viaje').textContent = ORIGEN + ' → ' + parada.nombre;
+    document.getElementById('resumen-precio').textContent = '$' + parada.precio;
+    paso3.classList.remove('oculto');
+    avisarQueFalta();
+    if (moverPantalla) { paso3.scrollIntoView({ behavior: 'smooth', block: 'nearest' }); }
+}
+
 function elegirAsiento(boton, numero, moverPantalla = true) {
     zonaAsientos.querySelectorAll('.asiento.elegido').forEach(otro => otro.classList.remove('elegido'));
     boton.classList.add('elegido');
     campoAsiento.value = numero;
-    document.getElementById('resumen-asiento').textContent = 'Nº ' + numero;
-    paso3.classList.remove('oculto');
+    resumenAsiento.textContent = 'Nº ' + numero;
+    avisarQueFalta();
     if (moverPantalla) {
-        paso3.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+        paso5.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
         campoNombre.focus();
     }
 }
 
-function olvidarAsiento() {  // al cambiar la fecha el asiento anterior ya no sirve
-    campoAsiento.value = '';
+function olvidarParada() {  // al cambiar de ruta, la parada de antes ya no es de esta
+    document.querySelectorAll('input[name="parada"]').forEach(radio => { radio.checked = false; });
+    document.querySelectorAll('.parada').forEach(tarjeta => tarjeta.classList.remove('elegida'));
+    document.getElementById('resumen-viaje').textContent = '—';
+    document.getElementById('resumen-precio').textContent = '—';
     paso3.classList.add('oculto');
+    paso4.classList.add('oculto');  // el autobus se vuelve a pedir al escoger otra parada
+    olvidarAsiento();
+}
+
+function olvidarAsiento() {  // al cambiar el viaje o la fecha el asiento anterior ya no sirve
+    // OJO: aqui no se esconde el paso 4. El mapa del autobus lo pone y lo quita
+    // nada mas cargarAsientos(); si se escondiera aqui, se taparia el mapa que
+    // se acaba de dibujar, porque cargarAsientos termina llamando a esta funcion.
+    campoAsiento.value = '';
+    resumenAsiento.textContent = '—';
+    zonaAsientos.querySelectorAll('.asiento.elegido').forEach(
+        boton => boton.classList.remove('elegido'));
+    avisarQueFalta();
+}
+
+function enLista(cosas) {  // ['a', 'b', 'c'] ---> "a, b y c"
+    if (cosas.length === 1) { return cosas[0]; }
+    return cosas.slice(0, -1).join(', ') + ' y ' + cosas[cosas.length - 1];
+}
+
+function loQueFalta() {  // lo que todavia no se ha escogido, en el orden de los pasos
+    const falta = [];
+    if (!valorMarcado('ruta'))     { falta.push('la ruta'); }
+    if (!valorMarcado('parada'))   { falta.push('el punto donde se baja'); }
+    if (!campoFecha.value)         { falta.push('la fecha del viaje'); }
+    if (!campoAsiento.value)       { falta.push('el asiento'); }
+    if (!campoNombre.value.trim()) { falta.push('el nombre del pasajero'); }
+    return falta;
+}
+
+function avisarQueFalta() {
+    const falta = loQueFalta();
+    avisoFalta.textContent = falta.length ? 'Todavía falta: ' + enLista(falta) + '.' : '';
+    // el boton se ve apagado, pero se puede picar: si se pica incompleto, el
+    // servidor contesta con el error de cada campo que haga falta
+    botonConfirmar.classList.toggle('apagado', falta.length > 0);
 }
 
 function fechaEnLetras(fecha) {  // 2026-10-20 ---> 20 de octubre de 2026
@@ -142,9 +319,71 @@ function fechaEnLetras(fecha) {  // 2026-10-20 ---> 20 de octubre de 2026
         { day: 'numeric', month: 'long', year: 'numeric' });
 }
 
-campoFecha.addEventListener('change', () => { olvidarAsiento(); cargarAsientos(false); });
+document.querySelectorAll('input[name="ruta"]').forEach(opcion =>
+    opcion.addEventListener('change', () => elegirRuta()));
+
+// al cambiar de parada no se vuelven a pedir los asientos si no hace falta:
+// el autobus es el mismo de la ruta, solo cambia el precio
+document.querySelectorAll('input[name="parada"]').forEach(opcion =>
+    opcion.addEventListener('change', () => { elegirParada(); cargarAsientos(true); }));
+
+campoFecha.addEventListener('change', () => {
+    resumenFecha.textContent = campoFecha.value ? fechaEnLetras(campoFecha.value) : '—';
+    olvidarAsiento();
+    cargarAsientos(false);
+});
+
+campoNombre.addEventListener('input', avisarQueFalta);
+
+// --- El recuadro de confirmar la venta ---
+
+function abrirConfirmacion() {  // se llena con lo que se escogio y se descubre
+    const parada = PARADAS[valorMarcado('parada')];
+    const corrida = RUTAS.find(ruta => ruta.clave === parada.ruta);
+    document.getElementById('ver-pasajero').textContent = campoNombre.value.trim();
+    document.getElementById('ver-viaje').textContent = ORIGEN + ' → ' + parada.nombre;
+    document.getElementById('ver-fecha').textContent = fechaEnLetras(campoFecha.value);
+    document.getElementById('ver-precio').textContent = '$' + parada.precio;
+    document.getElementById('ver-asiento').textContent = campoAsiento.value;
+    document.getElementById('ver-corrida').textContent = 'Corrida a ' + corrida.destino;
+    velo.classList.remove('oculto');
+    botonSi.focus();
+}
+
+function cerrarConfirmacion() {
+    velo.classList.add('oculto');
+    botonConfirmar.focus();  // se regresa al boton de donde se venia
+}
+
+// antes de guardar se pregunta una vez, con el boleto a la vista
+formulario.addEventListener('submit', evento => {
+    if (loQueFalta().length) { return; }  // incompleto: que conteste el servidor
+    evento.preventDefault();              // primero se pregunta
+    abrirConfirmacion();
+});
+
+botonSi.addEventListener('click', () => {
+    botonSi.textContent = 'Vendiendo...';
+    botonSi.disabled = true;      // para que no se pique dos veces
+    formulario.submit();          // asi ya no vuelve a pasar por el submit de arriba
+});
+
+document.getElementById('no-vender').addEventListener('click', cerrarConfirmacion);
+
+// picarle al velo de alrededor o apretar Esc es lo mismo que decir "no"
+velo.addEventListener('click', evento => {
+    if (evento.target === velo) { cerrarConfirmacion(); }
+});
+
+document.addEventListener('keydown', evento => {
+    if (evento.key === 'Escape' && !velo.classList.contains('oculto')) { cerrarConfirmacion(); }
+});
 
 // si la pagina se volvio a cargar con datos (por un error), se arma como estaba
-if (campoFecha.value) { cargarAsientos(true); }
+if (valorMarcado('ruta')) { elegirRuta(false, false); }
+if (valorMarcado('parada')) { elegirParada(false); }
+if (campoFecha.value) { resumenFecha.textContent = fechaEnLetras(campoFecha.value); }
+if (valorMarcado('parada') && campoFecha.value) { cargarAsientos(true); }
+avisarQueFalta();
 </script>
 {% endblock %}

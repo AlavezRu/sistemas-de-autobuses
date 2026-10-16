@@ -10,6 +10,11 @@
     <div class="pase">
         <div class="pase-datos">
             <p>Pasajero</p><b>{{ nuevo.pasajero }}</b>
+            <p>Viaje</p><b>{{ origen }} → {{ nuevo.destino }}</b>
+            {% if nuevo.destino != nuevo.corrida %}
+            <!-- se baja antes de la punta: se aclara de que corrida es el autobus -->
+            <p>Corrida</p><b>Autobús a {{ nuevo.corrida }}</b>
+            {% endif %}
             <p>Fecha del viaje</p><b>{{ nuevo.fecha_viaje }}</b>
             <p>Vendido el</p><b>{{ nuevo.fecha_venta }}</b>
         </div>
@@ -17,6 +22,7 @@
             <p>Asiento</p>
             <span>{{ nuevo.asiento }}</span>
             <p>Folio {{ '%04d'|format(nuevo.id) }}</p>
+            <p class="pase-precio">${{ nuevo.precio }}</p>
         </div>
     </div>
 </section>
@@ -25,7 +31,7 @@
 <section class="panel">
     <div class="encabezado-panel">
         <h2>Boletos vendidos</h2>
-        <span class="enlace en-linea">{{ boletos|length }} boleto(s)</span>
+        <span class="enlace en-linea">{{ boletos|length }} boleto(s) · ${{ total }}</span>
     </div>
 
     {% if boletos %}
@@ -34,8 +40,10 @@
             <tr>
                 <th>Folio</th>
                 <th>Pasajero</th>
+                <th>Se baja en</th>
                 <th>Asiento</th>
                 <th>Fecha del viaje</th>
+                <th>Precio</th>
                 <th>Vendido el</th>
                 <th>Cancelar</th>
             </tr>
@@ -45,8 +53,11 @@
             <tr class="{{ 'resaltado' if nuevo and boleto.id == nuevo.id }}">
                 <td>{{ '%04d'|format(boleto.id) }}</td>
                 <td>{{ boleto.pasajero }}</td>
+                <td>{{ boleto.destino }}{% if boleto.destino != boleto.corrida %}<span
+                    class="txt-corrida">ruta {{ boleto.corrida }}</span>{% endif %}</td>
                 <td><b class="txt-asiento">{{ boleto.asiento }}</b></td>
                 <td>{{ boleto.fecha_viaje }}</td>
+                <td><b class="txt-precio">${{ boleto.precio }}</b></td>
                 <td>{{ boleto.fecha_venta }}</td>
                 <td>
                     <!-- al cancelar, el asiento vuelve a quedar libre para ese dia -->
@@ -58,6 +69,14 @@
             </tr>
             {% endfor %}
         </tbody>
+        <tfoot>
+            <!-- la suma de todos los boletos que siguen vendidos -->
+            <tr>
+                <td colspan="5">Total cobrado</td>
+                <td><b class="txt-precio">${{ total }}</b></td>
+                <td colspan="2"></td>
+            </tr>
+        </tfoot>
     </table>
     {% else %}
         <p class="vacio">Todavía no se ha vendido ningún boleto.</p>

@@ -1,0 +1,69 @@
+{% extends 'base.html' %}
+
+{% block titulo %}Editar cuenta — Venta de Boletos de Autobús{% endblock %}
+
+{% block contenido %}
+<section class="panel">
+    <div class="encabezado-panel">
+        <h2>Editar la cuenta de {{ cuenta.nombre }}</h2>
+        <a class="enlace en-linea" href="{{ url_for('usuarios') }}">← Regresar a usuarios</a>
+    </div>
+
+    {% if errores %}
+        <p class="alerta">Revisa los datos: {{ errores.values()|join(' ') }}</p>
+    {% endif %}
+
+    <form method="POST" action="{{ url_for('editar_usuario', id_usuario=cuenta.id) }}"
+          class="formulario-cuenta" novalidate>
+        {{ campo_csrf() }}
+
+        <div>
+            <label>Usuario</label>
+            <!-- no se puede cambiar: es lo que queda anotado en los boletos que vendio -->
+            <p class="dato-fijo">{{ cuenta.usuario }}</p>
+            <p class="nota-campo">El usuario no se cambia: es lo que queda anotado en sus boletos.</p>
+        </div>
+
+        <div>
+            <label for="nombre">Nombre</label>
+            <input type="text" id="nombre" name="nombre" value="{{ valores.nombre }}"
+                   maxlength="60" autocomplete="off" required>
+            {% if errores.nombre %}<p class="error">{{ errores.nombre }}</p>{% endif %}
+        </div>
+
+        <div class="columna-completa">
+            <label>Perfil</label>
+            <div class="opciones-perfil">
+                <label class="opcion-perfil">
+                    <input type="radio" name="perfil" value="vendedor"
+                           {{ 'checked' if valores.perfil != 'admin' }}>
+                    <span><b>Vendedor</b> — vende y cancela boletos</span>
+                </label>
+                <label class="opcion-perfil">
+                    <input type="radio" name="perfil" value="admin"
+                           {{ 'checked' if valores.perfil == 'admin' }}>
+                    <span><b>Administrador</b> — todo, más cuentas, corrección de boletos y corte de caja</span>
+                </label>
+            </div>
+            {% if cuenta.id == g.usuario.id %}
+            <p class="nota-campo">Es tu cuenta: si te quitas el perfil de administrador, dejas de ver esta página.</p>
+            {% endif %}
+            {% if errores.perfil %}<p class="error">{{ errores.perfil }}</p>{% endif %}
+        </div>
+
+        <div>
+            <label for="contrasena">Contraseña nueva</label>
+            <input type="password" id="contrasena" name="contrasena" autocomplete="new-password">
+            <p class="nota-campo">Déjala en blanco para no cambiarla. Si la cambias, por lo menos {{ minimo }} caracteres.</p>
+        </div>
+
+        <div>
+            <label for="repetir">Repite la contraseña nueva</label>
+            <input type="password" id="repetir" name="repetir" autocomplete="new-password">
+            {% if errores.contrasena %}<p class="error">{{ errores.contrasena }}</p>{% endif %}
+        </div>
+
+        <button type="submit" class="boton columna-completa">Guardar cambios</button>
+    </form>
+</section>
+{% endblock %}

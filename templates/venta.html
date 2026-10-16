@@ -14,6 +14,7 @@
 
     <!-- Un solo formulario; los pasos se van descubriendo conforme se contesta -->
     <form method="POST" id="formulario" novalidate>
+        {{ campo_csrf() }}
 
         <!-- PASO 1: la ruta; las tres salen de Teposcolula -->
         <div class="paso" id="paso1">

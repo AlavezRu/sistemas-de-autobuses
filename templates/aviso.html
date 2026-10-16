@@ -1,0 +1,15 @@
+{% extends 'base.html' %}
+
+{% block titulo %}{{ titulo }} — Venta de Boletos de Autobús{% endblock %}
+
+{% block contenido %}
+<!-- Una sola pagina para los avisos de "no tienes permiso", "no existe" y
+     "el formulario ya no sirve"; el texto lo pone Pagina.py -->
+<section class="panel tarjeta-entrar">
+    <h2>{{ titulo }}</h2>
+    <p class="bienvenida">{{ mensaje }}</p>
+    {% if regresar is not defined or regresar %}
+    <a class="boton enlace-boton" href="{{ url_for('index') }}">Ir al inicio</a>
+    {% endif %}
+</section>
+{% endblock %}

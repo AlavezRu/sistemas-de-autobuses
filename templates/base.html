@@ -23,16 +23,43 @@
                     <h1>Venta de Boletos de Autobús</h1>
                     <p class="linea">Terminal de autobuses</p>
                 </div>
+
+                {% if g.usuario %}
+                <!-- Quien esta adentro, con su perfil, y el boton para salir.
+                     Salir va por POST (con su campo de proteccion) para que un
+                     enlace de otro sitio no pueda sacar a nadie -->
+                <div class="cuenta">
+                    <div class="cuenta-datos">
+                        <b>{{ g.usuario.nombre }}</b>
+                        <span class="perfil perfil-{{ g.usuario.perfil }}">{{ perfiles[g.usuario.perfil] }}</span>
+                    </div>
+                    <form method="POST" action="{{ url_for('salir') }}">
+                        {{ campo_csrf() }}
+                        <button type="submit" class="boton-salir">Salir</button>
+                    </form>
+                </div>
+                {% endif %}
             </div>
 
-            <!-- Menu: barra debajo del titulo; la pagina donde se esta lleva la clase "activo" -->
+            {% if g.usuario %}
+            <!-- Menu: barra debajo del titulo; la pagina donde se esta lleva la clase "activo".
+                 El corte y las cuentas solo le salen al admin -->
             <nav class="menu">
                 <a href="{{ url_for('index') }}" class="{{ 'activo' if request.endpoint == 'index' }}">Inicio</a>
                 <a href="{{ url_for('venta') }}" class="{{ 'activo' if request.endpoint == 'venta' }}">Vender boleto</a>
-                <a href="{{ url_for('boletos') }}" class="{{ 'activo' if request.endpoint == 'boletos' }}">Boletos vendidos</a>
+                <a href="{{ url_for('boletos') }}" class="{{ 'activo' if request.endpoint in ('boletos', 'editar_boleto') }}">Boletos vendidos</a>
+                {% if g.usuario.perfil == 'admin' %}
                 <a href="{{ url_for('corte_de_caja') }}" class="{{ 'activo' if request.endpoint == 'corte_de_caja' }}">Corte de caja</a>
+                <a href="{{ url_for('usuarios') }}" class="{{ 'activo' if request.endpoint in ('usuarios', 'editar_usuario') }}">Usuarios</a>
+                {% endif %}
             </nav>
+            {% endif %}
         </header>
+
+        <!-- Los avisos de "listo" o de error que deja una pagina antes de mandar a otra -->
+        {% for categoria, mensaje in get_flashed_messages(with_categories=true) %}
+        <p class="aviso aviso-{{ categoria }}">{{ mensaje }}</p>
+        {% endfor %}
 
         {% block contenido %}{% endblock %}
     </div>

@@ -1,0 +1,109 @@
+{% extends 'base.html' %}
+
+{% block titulo %}Usuarios — Venta de Boletos de Autobús{% endblock %}
+
+{% block contenido %}
+<!-- La lista de cuentas (la consulta), con los botones de cambiar y borrar -->
+<section class="panel">
+    <div class="encabezado-panel">
+        <h2>Usuarios</h2>
+        <span class="enlace en-linea">{{ usuarios|length }} cuenta(s)</span>
+    </div>
+
+    <table>
+        <thead>
+            <tr>
+                <th>Usuario</th>
+                <th>Nombre</th>
+                <th>Perfil</th>
+                <th>Boletos vendidos</th>
+                <th>Creada el</th>
+                <th>Acciones</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for cuenta in usuarios %}
+            <tr class="{{ 'resaltado' if cuenta.id == g.usuario.id }}">
+                <td><b>{{ cuenta.usuario }}</b>{% if cuenta.id == g.usuario.id %}<span
+                    class="txt-corrida">tu cuenta</span>{% endif %}</td>
+                <td>{{ cuenta.nombre }}</td>
+                <td><span class="perfil perfil-{{ cuenta.perfil }}">{{ perfiles[cuenta.perfil] }}</span></td>
+                <td>{{ cuenta.vendidos }}</td>
+                <td>{{ cuenta.creado.split(' ')[0] }}</td>
+                <td class="acciones">
+                    <a class="boton-editar" href="{{ url_for('editar_usuario', id_usuario=cuenta.id) }}">Editar</a>
+                    {% if cuenta.id != g.usuario.id %}
+                    <!-- la propia cuenta no se puede borrar: te quedarias afuera -->
+                    <form method="POST" action="{{ url_for('borrar_usuario', id_usuario=cuenta.id) }}"
+                          onsubmit="return confirm('¿Borrar la cuenta de {{ cuenta.nombre }}? Sus boletos vendidos se quedan.');">
+                        {{ campo_csrf() }}
+                        <button type="submit" class="boton-chico">Borrar</button>
+                    </form>
+                    {% endif %}
+                </td>
+            </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+</section>
+
+<!-- El alta de una cuenta nueva -->
+<section class="panel">
+    <h2>Nueva cuenta</h2>
+
+    {% if errores %}
+        <p class="alerta">Revisa los datos: {{ errores.values()|join(' ') }}</p>
+    {% endif %}
+
+    <form method="POST" action="{{ url_for('usuarios') }}" class="formulario-cuenta" novalidate>
+        {{ campo_csrf() }}
+
+        <div>
+            <label for="usuario">Usuario</label>
+            <input type="text" id="usuario" name="usuario" value="{{ valores.usuario }}"
+                   placeholder="Ejemplo: ana.perez" maxlength="20"
+                   autocomplete="off" autocapitalize="none" spellcheck="false" required>
+            <p class="nota-campo">De 3 a 20 letras sin acentos, números, punto o guion. No se puede cambiar después.</p>
+            {% if errores.usuario %}<p class="error">{{ errores.usuario }}</p>{% endif %}
+        </div>
+
+        <div>
+            <label for="nombre">Nombre</label>
+            <input type="text" id="nombre" name="nombre" value="{{ valores.nombre }}"
+                   placeholder="Ejemplo: Ana Pérez López" maxlength="60" autocomplete="off" required>
+            {% if errores.nombre %}<p class="error">{{ errores.nombre }}</p>{% endif %}
+        </div>
+
+        <div class="columna-completa">
+            <label>Perfil</label>
+            <div class="opciones-perfil">
+                <label class="opcion-perfil">
+                    <input type="radio" name="perfil" value="vendedor"
+                           {{ 'checked' if valores.perfil != 'admin' }}>
+                    <span><b>Vendedor</b> — vende y cancela boletos</span>
+                </label>
+                <label class="opcion-perfil">
+                    <input type="radio" name="perfil" value="admin"
+                           {{ 'checked' if valores.perfil == 'admin' }}>
+                    <span><b>Administrador</b> — todo, más cuentas, corrección de boletos y corte de caja</span>
+                </label>
+            </div>
+            {% if errores.perfil %}<p class="error">{{ errores.perfil }}</p>{% endif %}
+        </div>
+
+        <div>
+            <label for="contrasena">Contraseña</label>
+            <input type="password" id="contrasena" name="contrasena" autocomplete="new-password" required>
+            <p class="nota-campo">Por lo menos {{ minimo }} caracteres.</p>
+        </div>
+
+        <div>
+            <label for="repetir">Repite la contraseña</label>
+            <input type="password" id="repetir" name="repetir" autocomplete="new-password" required>
+            {% if errores.contrasena %}<p class="error">{{ errores.contrasena }}</p>{% endif %}
+        </div>
+
+        <button type="submit" class="boton columna-completa">Crear cuenta</button>
+    </form>
+</section>
+{% endblock %}

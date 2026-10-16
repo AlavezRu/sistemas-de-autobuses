@@ -1,0 +1,150 @@
+{% extends 'base.html' %}
+
+{% block titulo %}Vender boleto — Venta de Boletos de Autobús{% endblock %}
+
+{% block contenido %}
+<section class="panel">
+    <h2>Vender boleto</h2>
+    <p class="bienvenida">Reservar boletos en tres pasos: la fecha, el asiento y el nombre del pasajero.</p>
+
+    {% if errores %}
+        <p class="alerta">Revisa los datos: {{ errores.values()|join(' ') }}</p>
+    {% endif %}
+
+    <!-- Un solo formulario; los pasos se van descubriendo conforme se contesta -->
+    <form method="POST" id="formulario" novalidate>
+
+        <!-- PASO 1: la fecha del viaje -->
+        <div class="paso" id="paso1">
+            <div class="paso-titulo"><span class="numero">1</span> ¿Qué día es el viaje?</div>
+            <label for="fecha_viaje">Fecha del viaje</label>
+            <input type="date" id="fecha_viaje" name="fecha_viaje"
+                   value="{{ valores.fecha_viaje }}" min="{{ hoy }}" max="{{ maximo }}" required>
+            {% if errores.fecha_viaje %}<p class="error">{{ errores.fecha_viaje }}</p>{% endif %}
+        </div>
+
+        <!-- PASO 2: el mapa del autobus; aparece cuando ya hay fecha -->
+        <div class="paso oculto" id="paso2">
+            <div class="paso-titulo"><span class="numero">2</span> Elige tu asiento</div>
+
+            <div class="referencias">
+                <span><i class="muestra libre"></i> Libre</span>
+                <span><i class="muestra ocupado"></i> Vendido</span>
+                <span><i class="muestra elegido"></i> Tu asiento</span>
+                <span id="libres" class="cuenta-libres"></span>
+            </div>
+
+            <div class="autobus">
+                <div class="frente">
+                    <span class="volante">🚍</span>
+                    <span class="letrero">Frente del autobús</span>
+                </div>
+                <div class="asientos" id="asientos"><!-- los asientos los dibuja el JavaScript --></div>
+            </div>
+            {% if errores.asiento %}<p class="error">{{ errores.asiento }}</p>{% endif %}
+            <input type="hidden" id="asiento" name="asiento" value="{{ valores.asiento }}">
+        </div>
+
+        <!-- PASO 3: el nombre; aparece cuando ya se escogio el asiento -->
+        <div class="paso oculto" id="paso3">
+            <div class="paso-titulo"><span class="numero">3</span> ¿A nombre de quién?</div>
+
+            <div class="resumen">
+                <div><p>Fecha del viaje</p><b id="resumen-fecha">—</b></div>
+                <div><p>Asiento</p><b id="resumen-asiento">—</b></div>
+            </div>
+
+            <label for="pasajero">Nombre del pasajero</label>
+            <input type="text" id="pasajero" name="pasajero" value="{{ valores.pasajero }}"
+                   placeholder="Ejemplo: Mario Ruiz Alavez" maxlength="60" autocomplete="off" required>
+            {% if errores.pasajero %}<p class="error">{{ errores.pasajero }}</p>{% endif %}
+
+            <button type="submit" class="boton">Vender boleto</button>
+            <p class="nota">El asiento se aparta hasta que se guarda el boleto.</p>
+        </div>
+    </form>
+</section>
+
+<script>
+const TOTAL = {{ total_asientos }};
+const POR_FILA = {{ por_fila }};
+
+const campoFecha   = document.getElementById('fecha_viaje');
+const campoAsiento = document.getElementById('asiento');
+const campoNombre  = document.getElementById('pasajero');
+const zonaAsientos = document.getElementById('asientos');
+const paso2 = document.getElementById('paso2');
+const paso3 = document.getElementById('paso3');
+const avisoLibres = document.getElementById('libres');
+
+// Le pregunta al servidor que asientos estan vendidos ese dia y los dibuja
+async function cargarAsientos(conservarAsiento) {
+    const fecha = campoFecha.value;
+    if (!fecha) { paso2.classList.add('oculto'); paso3.classList.add('oculto'); return; }
+
+    const respuesta = await fetch('/api/asientos?fecha=' + encodeURIComponent(fecha));
+    const datos = await respuesta.json();
+    if (!datos.ok) { avisoLibres.textContent = datos.error; return; }
+
+    zonaAsientos.innerHTML = '';
+    datos.asientos.forEach((asiento, indice) => {
+        const boton = document.createElement('button');
+        boton.type = 'button';  // para que no mande el formulario al hacer clic
+        boton.className = 'asiento ' + (asiento.ocupado ? 'ocupado' : 'libre');
+        boton.textContent = asiento.numero;
+        boton.style.animationDelay = (indice * 0.02) + 's';  // van apareciendo uno tras otro
+        if (asiento.ocupado) {
+            boton.disabled = true;
+            boton.title = 'Vendido a ' + asiento.pasajero;
+        } else {
+            boton.addEventListener('click', () => elegirAsiento(boton, asiento.numero));
+        }
+        zonaAsientos.appendChild(boton);
+        // el pasillo: despues del segundo asiento de cada fila se mete un hueco
+        if ((indice + 1) % POR_FILA === POR_FILA / 2) {
+            const pasillo = document.createElement('span');
+            pasillo.className = 'pasillo';
+            zonaAsientos.appendChild(pasillo);
+        }
+    });
+
+    avisoLibres.textContent = datos.libres + ' de ' + TOTAL + ' asientos libres';
+    paso2.classList.remove('oculto');
+    document.getElementById('resumen-fecha').textContent = fechaEnLetras(datos.fecha);
+
+    // si se regreso del servidor con un asiento ya escogido, se vuelve a marcar
+    const elegido = conservarAsiento ? parseInt(campoAsiento.value, 10) : NaN;
+    const botones = zonaAsientos.querySelectorAll('.asiento.libre');
+    const botonElegido = [...botones].find(boton => parseInt(boton.textContent, 10) === elegido);
+    if (botonElegido) { elegirAsiento(botonElegido, elegido, false); } else { olvidarAsiento(); }
+}
+
+function elegirAsiento(boton, numero, moverPantalla = true) {
+    zonaAsientos.querySelectorAll('.asiento.elegido').forEach(otro => otro.classList.remove('elegido'));
+    boton.classList.add('elegido');
+    campoAsiento.value = numero;
+    document.getElementById('resumen-asiento').textContent = 'Nº ' + numero;
+    paso3.classList.remove('oculto');
+    if (moverPantalla) {
+        paso3.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+        campoNombre.focus();
+    }
+}
+
+function olvidarAsiento() {  // al cambiar la fecha el asiento anterior ya no sirve
+    campoAsiento.value = '';
+    paso3.classList.add('oculto');
+}
+
+function fechaEnLetras(fecha) {  // 2026-10-20 ---> 20 de octubre de 2026
+    const [ano, mes, dia] = fecha.split('-').map(Number);
+    return new Date(ano, mes - 1, dia).toLocaleDateString('es-MX',
+        { day: 'numeric', month: 'long', year: 'numeric' });
+}
+
+campoFecha.addEventListener('change', () => { olvidarAsiento(); cargarAsientos(false); });
+
+// si la pagina se volvio a cargar con datos (por un error), se arma como estaba
+if (campoFecha.value) { cargarAsientos(true); }
+</script>
+{% endblock %}

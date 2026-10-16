@@ -1,0 +1,39 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>{% block titulo %}Venta de Boletos de Autobús{% endblock %}</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='estilos.css') }}">
+</head>
+<body>
+    <div class="contenedor">
+        <!-- Cabecera: el titulo de la taquilla y el menu -->
+        <header class="cabecera">
+            <div class="marca">
+                <!-- Logo: un boleto dibujado con SVG, no hace falta ninguna imagen -->
+                <span class="logo">
+                    <svg viewBox="0 0 48 32" aria-hidden="true">
+                        <path d="M4 4h40a2 2 0 0 1 2 2v5a5 5 0 0 0 0 10v5a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2v-5a5 5 0 0 0 0-10V6a2 2 0 0 1 2-2z"/>
+                        <line x1="31" y1="7" x2="31" y2="25"/>
+                        <circle cx="14" cy="16" r="4"/>
+                    </svg>
+                </span>
+                <div>
+                    <h1>Venta de Boletos de Autobús</h1>
+                    <p class="linea">Terminal de autobuses</p>
+                </div>
+            </div>
+
+            <!-- Menu: barra debajo del titulo; la pagina donde se esta lleva la clase "activo" -->
+            <nav class="menu">
+                <a href="{{ url_for('index') }}" class="{{ 'activo' if request.endpoint == 'index' }}">Inicio</a>
+                <a href="{{ url_for('venta') }}" class="{{ 'activo' if request.endpoint == 'venta' }}">Vender boleto</a>
+                <a href="{{ url_for('boletos') }}" class="{{ 'activo' if request.endpoint == 'boletos' }}">Boletos vendidos</a>
+            </nav>
+        </header>
+
+        {% block contenido %}{% endblock %}
+    </div>
+</body>
+</html>

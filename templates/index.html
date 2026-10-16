@@ -1,0 +1,39 @@
+{% extends 'base.html' %}
+
+{% block titulo %}Inicio — Venta de Boletos de Autobús{% endblock %}
+
+{% block contenido %}
+<!-- Bienvenida -->
+<section class="panel portada">
+    <h2>Bienvenido</h2>
+    <p class="bienvenida">
+        Aparta tu lugar en el autobús en unos cuantos clics: eliges el día del viaje,
+        escoges tu asiento en el mapa del autobús y escribes el nombre del pasajero.
+    </p>
+
+    <div class="datos-linea">
+        <div><b>{{ total_asientos }}</b><p>Asientos por autobús</p></div>
+        <div><b>{{ vendidos }}</b><p>Boletos vendidos</p></div>
+        <div><b>Hoy</b><p>Salidas todos los días</p></div>
+    </div>
+
+    <a class="boton enlace-boton" href="{{ url_for('venta') }}">Comprar mi boleto</a>
+</section>
+
+<!-- Los tres pasos de la venta -->
+<section class="panel">
+    <h2>¿Cómo se compra un boleto?</h2>
+    <div class="paso-info">
+        <b>1. La fecha del viaje</b>
+        <p>Se elige el día en el calendario; no se aceptan días que ya pasaron.</p>
+    </div>
+    <div class="paso-info">
+        <b>2. El asiento</b>
+        <p>Se muestra el mapa del autobús con los lugares libres de ese día; los ya vendidos no se pueden escoger.</p>
+    </div>
+    <div class="paso-info">
+        <b>3. El pasajero</b>
+        <p>Solo se escribe el nombre y el boleto queda apartado.</p>
+    </div>
+</section>
+{% endblock %}

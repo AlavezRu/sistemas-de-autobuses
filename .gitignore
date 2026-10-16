@@ -1,0 +1,15 @@
+# la base de datos se crea sola al arrancar, no se sube
+boletos.db
+
+# archivos que genera Python
+__pycache__/
+*.pyc
+
+# entornos virtuales
+venv/
+.venv/
+
+# cosas de Windows y del editor
+Thumbs.db
+desktop.ini
+.vscode/

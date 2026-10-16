@@ -1,0 +1,66 @@
+{% extends 'base.html' %}
+
+{% block titulo %}Boletos vendidos — Venta de Boletos de Autobús{% endblock %}
+
+{% block contenido %}
+{% if nuevo %}
+<!-- El boleto que se acaba de vender, en forma de pase de abordar -->
+<section class="panel">
+    <h2>¡Boleto vendido!</h2>
+    <div class="pase">
+        <div class="pase-datos">
+            <p>Pasajero</p><b>{{ nuevo.pasajero }}</b>
+            <p>Fecha del viaje</p><b>{{ nuevo.fecha_viaje }}</b>
+            <p>Vendido el</p><b>{{ nuevo.fecha_venta }}</b>
+        </div>
+        <div class="pase-asiento">
+            <p>Asiento</p>
+            <span>{{ nuevo.asiento }}</span>
+            <p>Folio {{ '%04d'|format(nuevo.id) }}</p>
+        </div>
+    </div>
+</section>
+{% endif %}
+
+<section class="panel">
+    <div class="encabezado-panel">
+        <h2>Boletos vendidos</h2>
+        <span class="enlace en-linea">{{ boletos|length }} boleto(s)</span>
+    </div>
+
+    {% if boletos %}
+    <table>
+        <thead>
+            <tr>
+                <th>Folio</th>
+                <th>Pasajero</th>
+                <th>Asiento</th>
+                <th>Fecha del viaje</th>
+                <th>Vendido el</th>
+                <th>Cancelar</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for boleto in boletos %}
+            <tr class="{{ 'resaltado' if nuevo and boleto.id == nuevo.id }}">
+                <td>{{ '%04d'|format(boleto.id) }}</td>
+                <td>{{ boleto.pasajero }}</td>
+                <td><b class="txt-asiento">{{ boleto.asiento }}</b></td>
+                <td>{{ boleto.fecha_viaje }}</td>
+                <td>{{ boleto.fecha_venta }}</td>
+                <td>
+                    <!-- al cancelar, el asiento vuelve a quedar libre para ese dia -->
+                    <form method="POST" action="{{ url_for('cancelar', id_boleto=boleto.id) }}"
+                          onsubmit="return confirm('¿Cancelar el boleto de {{ boleto.pasajero }}?');">
+                        <button type="submit" class="boton-chico">Cancelar</button>
+                    </form>
+                </td>
+            </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+    {% else %}
+        <p class="vacio">Todavía no se ha vendido ningún boleto.</p>
+    {% endif %}
+</section>
+{% endblock %}

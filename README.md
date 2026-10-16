@@ -1,6 +1,7 @@
 # Sistema de Autobuses — Venta de Boletos
 
-Aplicación web para vender boletos de autobús, hecha con **Flask** y **SQLite**.
+Aplicación web para vender boletos de autobús, hecha con **Flask** y **Flask-SQLAlchemy**
+(SQLite en la computadora).
 
 Autor: Mario Ruiz Alavez
 
@@ -53,7 +54,7 @@ Después, el administrador da de alta a los vendedores desde *Usuarios*.
 - Cada formulario lleva un campo escondido que solo conoce la sesión, y la cookie va con
   `SameSite=Lax`: otra página no puede mandar formularios a nombre de quien tenga la sesión
   abierta (por ejemplo, para cancelarle boletos).
-- La sesión se firma con una llave que se crea sola en el archivo `.clave_secreta`. **Ese
+- La sesión se firma con una llave que se crea sola en `instance/.clave_secreta`. **Ese
   archivo no se sube nunca** (está en el `.gitignore`): con él cualquiera podría hacerse pasar
   por el administrador. En un servidor conviene ponerla en la variable de entorno `SECRET_KEY`.
 
@@ -134,8 +135,11 @@ renglón se borra de la base.
 | `Pagina.py` | La aplicación Flask, sus rutas y el portero que revisa cada petición |
 | `sesion.py` | El login: la llave de la sesión, quién está adentro, los permisos y la protección de formularios |
 | `corte.py` | Suma el corte de caja y arma el PDF con fpdf2 |
-| `base_datos.py` | Las rutas con sus paradas y precios, y todo lo de SQLite: los boletos y las cuentas |
+| `Database/models.py` | Las tablas como clases de Flask-SQLAlchemy: `Boleto` y `Usuario` |
+| `base_datos.py` | Las rutas con sus paradas y precios, y las consultas a la base hechas con el ORM |
 | `validaciones.py` | Revisa lo que se escribe en cada formulario antes de guardarlo |
+| `verificar_db.py` | Enlista los boletos y las cuentas de la base desde la consola |
+| `instance/` | Se crea sola al arrancar: la base `boletos.db` y la llave `.clave_secreta`. No se sube |
 | `templates/base.html` | La plantilla con la cabecera, la cuenta de quien está adentro y el menú según su perfil |
 | `templates/entrar.html` | El login |
 | `templates/primer_arranque.html` | La creación del primer administrador |
@@ -156,13 +160,25 @@ pip install -r requirements.txt
 python Pagina.py
 ```
 
-Las librerías son **Flask** para la aplicación, **fpdf2** para el PDF del corte de caja y
-**gunicorn** para subirla a un servidor.
+Las librerías son **Flask** para la aplicación, **Flask-SQLAlchemy** para la base de datos,
+**fpdf2** para el PDF del corte de caja y **gunicorn** para subirla a un servidor.
 
 Después se abre <http://localhost:5000> en el navegador.
 
-La base de datos `boletos.db` se crea sola la primera vez que se arranca, por eso no viene en
-el repositorio.
+La base de datos vive en `instance/boletos.db`. Flask-SQLAlchemy crea la carpeta y las
+tablas solas la primera vez que se arranca, por eso no vienen en el repositorio. Para ver lo
+que hay guardado sin abrir la página:
+
+```bash
+python verificar_db.py
+```
+
+Las tablas se crean al importar `Pagina.py` y no dentro del `if __name__ == '__main__'`: en
+Render la app la arranca gunicorn, que nunca pasa por ahí.
+
+Antes la base vivía junto al código (`boletos.db`). La primera vez que se arranca con
+Flask-SQLAlchemy, si existe esa base vieja, se **copia** a `instance/` con todo y sus boletos y
+cuentas; la vieja se queda de respaldo y se puede borrar cuando se vea que todo está bien.
 
 ## Subirlo a Render
 
@@ -175,7 +191,7 @@ variables:
 | `ADMIN_USUARIO` | Ej. `mario.ruiz` | El usuario del administrador |
 | `ADMIN_CONTRASENA` | Por lo menos 8 caracteres | Su contraseña |
 | `ADMIN_NOMBRE` | Ej. `Mario Ruiz Alavez` (opcional) | Su nombre; si no se pone, queda "Administrador" |
-| `BOLETOS_DB` | Opcional, ej. `/var/data/boletos.db` | Dónde guardar la base, si se le pone un disco persistente |
+| `DATABASE_URL` | Opcional | Otra base en lugar de SQLite (ver abajo) |
 
 **En Render no existe la pantalla de primer arranque.** Render pone sola la variable `RENDER`, y
 con ella la app sabe que está en internet: ahí el formulario dejaría que el primero que llegara
@@ -196,9 +212,12 @@ El administrador se vuelve a crear solo con las variables, pero lo demás empiez
 Para que los datos duren hay dos caminos:
 
 - **Un disco persistente** (pide un plan de pago): se monta, por ejemplo, en `/var/data` y se
-  pone `BOLETOS_DB=/var/data/boletos.db`. El código ya lo soporta.
-- **Una base de datos de Render (PostgreSQL)**: habría que cambiar `base_datos.py`, que hoy
-  habla con SQLite.
+  pone `DATABASE_URL=sqlite:////var/data/boletos.db` (con cuatro diagonales: la ruta es absoluta).
+- **Una base PostgreSQL** (de Render, de Neon, de Supabase...): se pone su dirección en
+  `DATABASE_URL` y se agrega su controlador (`psycopg2-binary`) al `requirements.txt`. Como
+  todo pasa por Flask-SQLAlchemy, el código no cambia. Si la dirección empieza con
+  `postgres://`, como la da Render, la app la corrige sola a `postgresql://`, que es la que
+  entiende SQLAlchemy 2.
 
 ## Rutas
 

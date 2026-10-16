@@ -3,6 +3,7 @@
 # adentro, que puede hacer cada perfil y la proteccion de los formularios.
 import os
 import secrets
+import shutil
 from functools import wraps
 
 from flask import abort, g, session
@@ -12,7 +13,9 @@ from werkzeug.security import check_password_hash, generate_password_hash
 import base_datos
 import validaciones
 
-ARCHIVO_LLAVE = os.path.join(os.path.dirname(os.path.abspath(__file__)), '.clave_secreta')
+NOMBRE_LLAVE = '.clave_secreta'  # vive dentro de la carpeta instance, junto a la base
+# donde vivia antes: junto al codigo
+LLAVE_DE_ANTES = os.path.join(os.path.dirname(os.path.abspath(__file__)), NOMBRE_LLAVE)
 
 # Render pone sola la variable RENDER en sus servidores. Alla el disco se borra
 # en cada deploy y cada vez que el servicio se duerme, y algunas cosas tienen
@@ -25,16 +28,19 @@ EN_RENDER = bool(os.environ.get('RENDER'))
 HASH_DE_RELLENO = generate_password_hash('relleno-que-nunca-coincide')
 
 
-def llave_secreta():
+def llave_secreta(carpeta_instance):
     # Con esta llave se firma la cookie de la sesion: quien la conozca puede
     # hacerse pasar por cualquiera. En un servidor se pone en la variable
-    # SECRET_KEY; si no esta, se guarda en un archivo que se crea solo.
-    # No se inventa una nueva en cada arranque: con gunicorn cada proceso
-    # tendria la suya y la sesion de uno no le serviria al otro.
+    # SECRET_KEY; si no esta, se guarda en un archivo de la carpeta instance
+    # que se crea solo. No se inventa una nueva en cada arranque: con gunicorn
+    # cada proceso tendria la suya y la sesion de uno no le serviria al otro.
     if os.environ.get('SECRET_KEY'):
         return os.environ['SECRET_KEY']
+    archivo_llave = os.path.join(carpeta_instance, NOMBRE_LLAVE)
+    if not os.path.exists(archivo_llave) and os.path.exists(LLAVE_DE_ANTES):
+        shutil.copy2(LLAVE_DE_ANTES, archivo_llave)  # la de antes: nadie sale de su sesion
     try:
-        with open(ARCHIVO_LLAVE, encoding='utf-8') as archivo:
+        with open(archivo_llave, encoding='utf-8') as archivo:
             llave = archivo.read().strip()
         if llave:
             return llave
@@ -42,11 +48,11 @@ def llave_secreta():
         pass
     llave = secrets.token_hex(32)
     try:
-        with open(ARCHIVO_LLAVE, 'x', encoding='utf-8') as archivo:  # 'x': solo si no existe
+        with open(archivo_llave, 'x', encoding='utf-8') as archivo:  # 'x': solo si no existe
             archivo.write(llave)
         return llave
     except FileExistsError:  # otro proceso la creo justo antes: se usa esa
-        with open(ARCHIVO_LLAVE, encoding='utf-8') as archivo:
+        with open(archivo_llave, encoding='utf-8') as archivo:
             return archivo.read().strip()
 
 

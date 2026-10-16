@@ -1,4 +1,8 @@
-# la base de datos se crea sola al arrancar, no se sube
+# la carpeta instance de Flask: ahi viven la base (boletos.db) y la llave de
+# las sesiones (.clave_secreta). Se crean solas al arrancar y NUNCA se suben
+instance/
+
+# la base de antes, que estaba junto al codigo (se queda de respaldo)
 boletos.db
 
 # la llave que firma las sesiones del login: se crea sola y NUNCA se sube,

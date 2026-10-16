@@ -4,14 +4,28 @@ from flask import (Flask, render_template, request, redirect, url_for, jsonify, 
 from datetime import date, timedelta
 import os
 
-import base_datos   # el modulo que guarda y lee los boletos en SQLite
+from Database.models import db  # la base de datos de Flask-SQLAlchemy
+import base_datos   # el modulo con las consultas: boletos, cuentas, rutas
 import validaciones  # el modulo que revisa lo que se escribio en el formulario
 import corte         # el modulo que suma el corte de caja y arma su PDF
 import sesion        # el modulo del login: quien esta adentro y que puede hacer
 
-app = Flask(__name__)  # crear la instancia de la aplicacion para mostrar la pagina web
+BASE_DIR = os.path.dirname(os.path.abspath(__file__))  # carpeta donde vive este archivo
+INSTANCE_PATH = os.path.join(BASE_DIR, 'instance')     # la carpeta instance, siempre junto a Pagina.py
 
-app.secret_key = sesion.llave_secreta()  # firma la cookie de la sesion
+# crear la instancia de la aplicacion para mostrar la pagina web, usando la carpeta instance
+app = Flask(__name__, instance_relative_config=True, instance_path=INSTANCE_PATH)
+os.makedirs(app.instance_path, exist_ok=True)  # crea la carpeta instance si no existe
+
+# Lo que se avisa al arrancar; sale en la consola, y en Render en sus Logs
+avisos = [base_datos.traer_la_base_de_antes(app.instance_path)]
+
+# la base: SQLite dentro de instance, o la que diga la variable DATABASE_URL
+app.config['SQLALCHEMY_DATABASE_URI'] = base_datos.direccion_de_la_base(app.instance_path)
+app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False  # desactivar el seguimiento de modificaciones
+db.init_app(app)  # inicializar la base de datos con la aplicacion Flask
+
+app.secret_key = sesion.llave_secreta(app.instance_path)  # firma la cookie de la sesion
 app.config.update(
     SESSION_COOKIE_HTTPONLY=True,   # el JavaScript de la pagina no puede leer la cookie
     SESSION_COOKIE_SAMESITE='Lax',  # otro sitio no puede mandar formularios con ella
@@ -333,15 +347,20 @@ def borrar_usuario(id_usuario):
     return redirect(url_for('usuarios'))
 
 
-base_datos.crear_tabla()  # si el archivo boletos.db no existe, se crea al arrancar
+# Las tablas se crean aqui, al importar el archivo, y no dentro del
+# "if __name__ == '__main__'" de abajo: en Render la app la arranca gunicorn,
+# que importa este archivo sin pasar nunca por __main__, y las tablas no se
+# crearian.
+with app.app_context():  # crea un contexto de aplicacion para poder acceder a la base de datos
+    base_datos.crear_tablas()  # crea las tablas que falten; las que ya estan no las toca
+    avisos.append(sesion.crear_admin_desde_entorno())
 
-# Lo que se avisa al arrancar sale en la consola, y en Render en sus Logs
-aviso_del_admin = sesion.crear_admin_desde_entorno()
-if aviso_del_admin:
-    print(aviso_del_admin, flush=True)
 if sesion.EN_RENDER and not os.environ.get('SECRET_KEY'):
-    print('AVISO: falta la variable SECRET_KEY. Sin ella, todos salen de su sesion '
-          'en cada deploy y cada vez que el servicio se duerme.', flush=True)
+    avisos.append('AVISO: falta la variable SECRET_KEY. Sin ella, todos salen de su sesion '
+                  'en cada deploy y cada vez que el servicio se duerme.')
+for aviso in avisos:
+    if aviso:
+        print(aviso, flush=True)
 
 if __name__ == '__main__':  # verifica si el archivo se esta ejecutando
     app.run(host='0.0.0.0', port=5000, debug=True)

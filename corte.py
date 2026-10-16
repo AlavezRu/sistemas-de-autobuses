@@ -193,14 +193,8 @@ class Hoja(FPDF):
             self.add_page()
 
 
-# Los anchos de cada tabla, en milimetros; el ancho util de la hoja es 180
-RESUMEN = [(70, 'left'), (40, 'center'), (70, 'right')]
-PARADAS = [(50, 'left'), (40, 'left'), (30, 'right'), (30, 'center'), (30, 'right')]
-DETALLE = [(14, 'left'), (42, 'left'), (28, 'left'), (24, 'left'),
-           (10, 'center'), (20, 'center'), (20, 'center'), (22, 'right')]
-
-
 def hacer_pdf(reporte):
+    # los anchos de cada tabla van en milimetros; el ancho util de la hoja es 180
     hoja = Hoja(reporte)
     hoja.alias_nb_pages()
     hoja.add_page()
@@ -253,22 +247,25 @@ def hacer_pdf(reporte):
     # --- Boleto por boleto ---
     hoja.seccion('DETALLE DE BOLETOS')
     hoja.cabe(16)
-    encabezado = [(14, 'Folio', 'left'), (42, 'Pasajero', 'left'),
-                  (28, 'Se baja en', 'left'), (24, 'Corrida', 'left'),
-                  (10, 'As.', 'center'), (20, 'Viaja', 'center'),
-                  (20, 'Vendido', 'center'), (22, 'Pasaje', 'right')]
+    # los anchos suman 180 mm, el ancho util de la hoja
+    encabezado = [(13, 'Folio', 'left'), (36, 'Pasajero', 'left'),
+                  (26, 'Se baja en', 'left'), (22, 'Corrida', 'left'),
+                  (9, 'As.', 'center'), (19, 'Viaja', 'center'),
+                  (19, 'Vendido', 'center'), (20, 'Vendedor', 'left'),
+                  (16, 'Pasaje', 'right')]
     hoja.fila(encabezado, negritas=True, fondo=True)
     for boleto in reporte['boletos']:
         if hoja.get_y() + 6 > hoja.h - 18:   # se repite el encabezado en la hoja nueva
             hoja.add_page()
             hoja.fila(encabezado, negritas=True, fondo=True)
-        hoja.fila([(14, format(boleto['id'], '04d'), 'left'),
-                   (42, recortar(boleto['pasajero'], 30), 'left'),
-                   (28, recortar(boleto['destino'], 18), 'left'),
-                   (24, recortar(boleto['corrida'], 14), 'left'),
-                   (10, boleto['asiento'], 'center'),
-                   (20, en_letras(boleto['fecha_viaje']), 'center'),
-                   (20, boleto['fecha_venta'].split(' ')[0], 'center'),
-                   (22, pesos(boleto['precio']), 'right')])
+        hoja.fila([(13, format(boleto['id'], '04d'), 'left'),
+                   (36, recortar(boleto['pasajero'], 25), 'left'),
+                   (26, recortar(boleto['destino'], 16), 'left'),
+                   (22, recortar(boleto['corrida'], 13), 'left'),
+                   (9, boleto['asiento'], 'center'),
+                   (19, en_letras(boleto['fecha_viaje']), 'center'),
+                   (19, boleto['fecha_venta'].split(' ')[0], 'center'),
+                   (20, recortar(boleto.get('vendedor') or '-', 12), 'left'),
+                   (16, pesos(boleto['precio']), 'right')])
 
     return bytes(hoja.output())

@@ -17,6 +17,7 @@
             {% endif %}
             <p>Fecha del viaje</p><b>{{ nuevo.fecha_viaje }}</b>
             <p>Vendido el</p><b>{{ nuevo.fecha_venta }}</b>
+            {% if nuevo.vendedor %}<p>Lo vendió</p><b>{{ nuevo.vendedor }}</b>{% endif %}
         </div>
         <div class="pase-asiento">
             <p>Asiento</p>
@@ -45,12 +46,13 @@
                 <th>Fecha del viaje</th>
                 <th>Precio</th>
                 <th>Vendido el</th>
-                <th>Cancelar</th>
+                <th>Vendió</th>
+                <th>Acciones</th>
             </tr>
         </thead>
         <tbody>
             {% for boleto in boletos %}
-            <tr class="{{ 'resaltado' if nuevo and boleto.id == nuevo.id }}">
+            <tr class="{{ 'resaltado' if (nuevo and boleto.id == nuevo.id) or boleto.id == editado }}">
                 <td>{{ '%04d'|format(boleto.id) }}</td>
                 <td>{{ boleto.pasajero }}</td>
                 <td>{{ boleto.destino }}{% if boleto.destino != boleto.corrida %}<span
@@ -59,10 +61,16 @@
                 <td>{{ boleto.fecha_viaje }}</td>
                 <td><b class="txt-precio">${{ boleto.precio }}</b></td>
                 <td>{{ boleto.fecha_venta }}</td>
-                <td>
+                <!-- los boletos de antes del login no tienen quien los vendio -->
+                <td>{{ boleto.vendedor or '—' }}</td>
+                <td class="acciones">
+                    {% if g.usuario.perfil == 'admin' %}
+                    <a class="boton-editar" href="{{ url_for('editar_boleto', id_boleto=boleto.id) }}">Editar</a>
+                    {% endif %}
                     <!-- al cancelar, el asiento vuelve a quedar libre para ese dia -->
                     <form method="POST" action="{{ url_for('cancelar', id_boleto=boleto.id) }}"
                           onsubmit="return confirm('¿Cancelar el boleto de {{ boleto.pasajero }}?');">
+                        {{ campo_csrf() }}
                         <button type="submit" class="boton-chico">Cancelar</button>
                     </form>
                 </td>
@@ -74,7 +82,7 @@
             <tr>
                 <td colspan="5">Total cobrado</td>
                 <td><b class="txt-precio">${{ total }}</b></td>
-                <td colspan="2"></td>
+                <td colspan="3"></td>
             </tr>
         </tfoot>
     </table>

@@ -1,0 +1,28 @@
+{% extends 'base.html' %}
+
+{% block titulo %}Entrar — Venta de Boletos de Autobús{% endblock %}
+
+{% block contenido %}
+<section class="panel tarjeta-entrar">
+    <h2>Entrar</h2>
+    <p class="bienvenida">Escribe tu usuario y tu contraseña para abrir la taquilla.</p>
+
+    {% if error %}<p class="alerta">{{ error }}</p>{% endif %}
+
+    <form method="POST" action="{{ url_for('entrar') }}" novalidate>
+        {{ campo_csrf() }}
+
+        <label for="usuario">Usuario</label>
+        <input type="text" id="usuario" name="usuario" value="{{ usuario }}"
+               autocomplete="username" autocapitalize="none" spellcheck="false" autofocus required>
+
+        <label for="contrasena" class="separado">Contraseña</label>
+        <input type="password" id="contrasena" name="contrasena"
+               autocomplete="current-password" required>
+
+        <button type="submit" class="boton">Entrar</button>
+    </form>
+
+    <p class="nota">¿No tienes cuenta? Pídesela al administrador.</p>
+</section>
+{% endblock %}

@@ -5,7 +5,10 @@ import os
 import sqlite3
 from datetime import datetime
 
-ARCHIVO = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'boletos.db')
+# Donde vive la base: junto al codigo, o donde diga la variable BOLETOS_DB (por
+# ejemplo, en el disco persistente de un servidor, para que no se borre).
+ARCHIVO = os.environ.get('BOLETOS_DB') or os.path.join(
+    os.path.dirname(os.path.abspath(__file__)), 'boletos.db')
 
 FILAS = 10       # cada autobus tiene 10 filas
 POR_FILA = 4     # dos asientos, el pasillo, y otros dos
@@ -79,9 +82,28 @@ ESQUEMA = '''
         fecha_viaje  TEXT    NOT NULL,
         precio       INTEGER NOT NULL,
         fecha_venta  TEXT    NOT NULL,
+        vendedor     TEXT    NOT NULL DEFAULT '',
         UNIQUE (asiento, fecha_viaje, ruta)
     )
 '''  # el UNIQUE evita vender dos veces el mismo asiento de la misma corrida
+# "vendedor" es la cuenta que vendio el boleto; se guarda el nombre de usuario
+# y no el id, para que el boleto siga diciendo quien lo vendio aunque despues
+# esa cuenta se borre.
+
+# Las cuentas que pueden entrar. La contrasena nunca se guarda tal cual: se
+# guarda su hash (werkzeug), y al entrar se compara contra ese hash.
+PERFILES = {'admin': 'Administrador', 'vendedor': 'Vendedor'}
+
+ESQUEMA_USUARIOS = '''
+    CREATE TABLE IF NOT EXISTS usuarios (
+        id          INTEGER PRIMARY KEY AUTOINCREMENT,
+        usuario     TEXT    NOT NULL UNIQUE,
+        nombre      TEXT    NOT NULL,
+        contrasena  TEXT    NOT NULL,
+        perfil      TEXT    NOT NULL CHECK (perfil IN ('admin', 'vendedor')),
+        creado      TEXT    NOT NULL
+    )
+'''
 
 RUTA_DE_ANTES = 'oaxaca'  # los boletos que ya estaban guardados eran viajes a Oaxaca
 
@@ -133,8 +155,9 @@ def columnas_de_la_tabla(conexion):  # vacio si la tabla todavia no existe
     return [renglon['name'] for renglon in conexion.execute('PRAGMA table_info(boletos)')]
 
 
-def crear_tabla():  # se llama al arrancar; si la tabla ya esta al dia no hace nada
+def crear_tabla():  # se llama al arrancar; si las tablas ya estan al dia no hace nada
     with conectar() as conexion:
+        conexion.execute(ESQUEMA_USUARIOS)  # las cuentas van en su propia tabla
         columnas = columnas_de_la_tabla(conexion)
         if not columnas:  # no habia base: se crea ya con todo
             conexion.execute(ESQUEMA)
@@ -144,6 +167,14 @@ def crear_tabla():  # se llama al arrancar; si la tabla ya esta al dia no hace n
             columnas = columnas_de_la_tabla(conexion)
         if 'parada' not in columnas:  # y de antes de los puntos intermedios
             agregar_las_paradas(conexion)
+        if 'vendedor' not in columnas:  # y de antes de que hubiera cuentas
+            agregar_el_vendedor(conexion)
+
+
+def agregar_el_vendedor(conexion):
+    # Los boletos de antes del login no tienen quien los vendio: se quedan con
+    # el vendedor vacio, y en las tablas se ven con una raya.
+    conexion.execute("ALTER TABLE boletos ADD COLUMN vendedor TEXT NOT NULL DEFAULT ''")
 
 
 def agregar_las_rutas(conexion):
@@ -190,7 +221,7 @@ def esta_ocupado(asiento, fecha_viaje, ruta):  # se revisa antes de guardar
     return asiento in asientos_ocupados(fecha_viaje, ruta)
 
 
-def guardar_boleto(pasajero, asiento, fecha_viaje, parada):
+def guardar_boleto(pasajero, asiento, fecha_viaje, parada, vendedor=''):
     # la parada ya dice de que ruta es y cuanto cuesta, no hay que pasarlos
     # devuelve el id del boleto, o None si alguien mas gano el asiento
     donde_baja = obtener_parada(parada)
@@ -200,14 +231,47 @@ def guardar_boleto(pasajero, asiento, fecha_viaje, parada):
     try:
         with conectar() as conexion:
             cursor = conexion.execute(
-                'INSERT INTO boletos (pasajero, ruta, parada, asiento, fecha_viaje, precio, fecha_venta) '
-                'VALUES (?, ?, ?, ?, ?, ?, ?)',
+                'INSERT INTO boletos (pasajero, ruta, parada, asiento, fecha_viaje, precio, '
+                'fecha_venta, vendedor) VALUES (?, ?, ?, ?, ?, ?, ?, ?)',
                 (pasajero, donde_baja['ruta'], donde_baja['clave'], asiento,
-                 fecha_viaje, donde_baja['precio'], momento)  # el precio se copia tal como se vendio
+                 fecha_viaje, donde_baja['precio'], momento,  # el precio se copia tal como se vendio
+                 vendedor)
             )
             return cursor.lastrowid
     except sqlite3.IntegrityError:  # el UNIQUE lo rechazo: ya estaba vendido
         return None
+
+
+def asiento_de_otro(asiento, fecha_viaje, ruta, id_boleto):
+    # al corregir un boleto: ¿ese asiento ya lo tiene OTRO boleto de la corrida?
+    with conectar() as conexion:
+        renglon = conexion.execute(
+            'SELECT id FROM boletos WHERE asiento = ? AND fecha_viaje = ? AND ruta = ? AND id != ?',
+            (asiento, fecha_viaje, ruta, id_boleto)
+        ).fetchone()
+    return renglon is not None
+
+
+def actualizar_boleto(id_boleto, pasajero, parada, fecha_viaje, asiento):
+    # El admin corrige un boleto ya vendido. Si cambia la parada, el precio pasa
+    # a ser el de la parada nueva; si no, se queda el que se cobro.
+    # Devuelve True si se guardo, False si el asiento ya era de otro boleto.
+    actual = obtener_boleto(id_boleto)
+    donde_baja = obtener_parada(parada)
+    if not actual or not donde_baja:
+        return False
+    precio = actual['precio'] if donde_baja['clave'] == actual['parada'] else donde_baja['precio']
+    try:
+        with conectar() as conexion:
+            conexion.execute(
+                'UPDATE boletos SET pasajero = ?, ruta = ?, parada = ?, fecha_viaje = ?, '
+                'asiento = ?, precio = ? WHERE id = ?',
+                (pasajero, donde_baja['ruta'], donde_baja['clave'], fecha_viaje,
+                 asiento, precio, id_boleto)
+            )
+        return True
+    except sqlite3.IntegrityError:  # el UNIQUE lo rechazo: ese asiento ya era de otro
+        return False
 
 
 def obtener_boletos():  # todos los boletos, los viajes mas cercanos primero
@@ -276,3 +340,81 @@ def boletos_por_ruta():  # {clave de la ruta: cuantos boletos lleva vendidos}
     for renglon in renglones:
         cuenta[renglon['ruta']] = renglon['cuantos']
     return cuenta
+
+
+# --- Las cuentas de usuario ---
+# Las funciones que regresan cuentas para mostrarlas NUNCA traen el hash de la
+# contrasena; solo buscar_para_entrar() lo trae, porque es la que lo compara.
+
+COLUMNAS_DE_CUENTA = 'id, usuario, nombre, perfil, creado'
+
+
+def contar_usuarios():  # cero quiere decir que es el primer arranque
+    with conectar() as conexion:
+        return conexion.execute('SELECT COUNT(*) FROM usuarios').fetchone()[0]
+
+
+def contar_admins():  # siempre tiene que quedar por lo menos uno
+    with conectar() as conexion:
+        return conexion.execute(
+            "SELECT COUNT(*) FROM usuarios WHERE perfil = 'admin'").fetchone()[0]
+
+
+def crear_usuario(usuario, nombre, contrasena_hash, perfil):
+    # devuelve el id de la cuenta, o None si ese nombre de usuario ya existe
+    momento = datetime.now().strftime(FORMATO_FECHA)
+    try:
+        with conectar() as conexion:
+            cursor = conexion.execute(
+                'INSERT INTO usuarios (usuario, nombre, contrasena, perfil, creado) '
+                'VALUES (?, ?, ?, ?, ?)',
+                (usuario, nombre, contrasena_hash, perfil, momento)
+            )
+            return cursor.lastrowid
+    except sqlite3.IntegrityError:  # el UNIQUE de usuario: ya hay una cuenta asi
+        return None
+
+
+def buscar_para_entrar(usuario):  # la cuenta CON su hash, solo para revisar la contrasena
+    with conectar() as conexion:
+        renglon = conexion.execute(
+            'SELECT * FROM usuarios WHERE usuario = ?', (usuario,)).fetchone()
+    return dict(renglon) if renglon else None
+
+
+def obtener_usuario(id_usuario):  # la cuenta sin su hash
+    with conectar() as conexion:
+        renglon = conexion.execute(
+            f'SELECT {COLUMNAS_DE_CUENTA} FROM usuarios WHERE id = ?', (id_usuario,)
+        ).fetchone()
+    return dict(renglon) if renglon else None
+
+
+def lista_de_usuarios():  # todas las cuentas con cuantos boletos ha vendido cada una
+    with conectar() as conexion:
+        renglones = conexion.execute(
+            'SELECT u.id, u.usuario, u.nombre, u.perfil, u.creado, COUNT(b.id) AS vendidos '
+            'FROM usuarios u LEFT JOIN boletos b ON b.vendedor = u.usuario '
+            'GROUP BY u.id ORDER BY u.perfil ASC, u.usuario ASC'  # los admin primero
+        ).fetchall()
+    return [dict(renglon) for renglon in renglones]
+
+
+def actualizar_usuario(id_usuario, nombre, perfil, contrasena_hash=None):
+    # el nombre de usuario no se cambia nunca: es lo que queda guardado en los
+    # boletos que vendio. Sin contrasena nueva, se queda la de antes.
+    with conectar() as conexion:
+        if contrasena_hash:
+            conexion.execute(
+                'UPDATE usuarios SET nombre = ?, perfil = ?, contrasena = ? WHERE id = ?',
+                (nombre, perfil, contrasena_hash, id_usuario))
+        else:
+            conexion.execute(
+                'UPDATE usuarios SET nombre = ?, perfil = ? WHERE id = ?',
+                (nombre, perfil, id_usuario))
+
+
+def borrar_usuario(id_usuario):  # los boletos que vendio se quedan, con su nombre
+    with conectar() as conexion:
+        cursor = conexion.execute('DELETE FROM usuarios WHERE id = ?', (id_usuario,))
+        return cursor.rowcount > 0

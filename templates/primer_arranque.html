@@ -1,0 +1,44 @@
+{% extends 'base.html' %}
+
+{% block titulo %}Primer arranque — Venta de Boletos de Autobús{% endblock %}
+
+{% block contenido %}
+<!-- Solo sale mientras la base no tiene ninguna cuenta: la primera que se crea
+     aqui es la del administrador, y despues esta pagina ya no se puede abrir -->
+<section class="panel tarjeta-entrar">
+    <h2>Bienvenido</h2>
+    <p class="bienvenida">Todavía no hay ninguna cuenta. Crea la del <b>administrador</b>: con
+        ella vas a poder dar de alta a los vendedores, corregir boletos y sacar el corte de caja.</p>
+
+    {% if errores %}
+        <p class="alerta">Revisa los datos: {{ errores.values()|join(' ') }}</p>
+    {% endif %}
+
+    <form method="POST" action="{{ url_for('primer_arranque') }}" novalidate>
+        {{ campo_csrf() }}
+
+        <label for="usuario">Usuario</label>
+        <input type="text" id="usuario" name="usuario" value="{{ valores.usuario }}"
+               placeholder="Ejemplo: mario.ruiz" maxlength="20"
+               autocomplete="username" autocapitalize="none" spellcheck="false" autofocus required>
+        <p class="nota-campo">De 3 a 20 letras sin acentos, números, punto o guion. Con este entras.</p>
+        {% if errores.usuario %}<p class="error">{{ errores.usuario }}</p>{% endif %}
+
+        <label for="nombre" class="separado">Nombre</label>
+        <input type="text" id="nombre" name="nombre" value="{{ valores.nombre }}"
+               placeholder="Ejemplo: Mario Ruiz Alavez" maxlength="60" autocomplete="name" required>
+        {% if errores.nombre %}<p class="error">{{ errores.nombre }}</p>{% endif %}
+
+        <label for="contrasena" class="separado">Contraseña</label>
+        <input type="password" id="contrasena" name="contrasena"
+               autocomplete="new-password" required>
+        <p class="nota-campo">Por lo menos {{ minimo }} caracteres.</p>
+
+        <label for="repetir" class="separado">Repite la contraseña</label>
+        <input type="password" id="repetir" name="repetir" autocomplete="new-password" required>
+        {% if errores.contrasena %}<p class="error">{{ errores.contrasena }}</p>{% endif %}
+
+        <button type="submit" class="boton">Crear administrador</button>
+    </form>
+</section>
+{% endblock %}

@@ -167,3 +167,152 @@ def validar_venta(datos):
                               f'para el viaje a {base_datos.nombre_de_ruta(valores["ruta"])} de ese dia.')
 
     return valores, errores
+
+
+def validar_edicion_de_boleto(datos, original):
+    # El admin corrige un boleto ya vendido: pasajero, parada, fecha y asiento.
+    valores = {}
+    errores = {}
+
+    ok, resultado = validar_pasajero(datos.get('pasajero'))
+    valores['pasajero'] = resultado if ok else limpiar(datos.get('pasajero'))
+    if not ok:
+        errores['pasajero'] = resultado
+
+    valores['parada'] = limpiar(datos.get('parada')).lower()
+    parada = base_datos.obtener_parada(valores['parada'])
+    if not parada:
+        errores['parada'] = 'Escoge en que punto se baja el pasajero.'
+
+    # Si la fecha no se movio se acepta aunque ya haya pasado: puede ser un
+    # viaje que ya salio y nada mas se corrige el nombre. Una fecha nueva si
+    # tiene que ser de hoy en adelante, como al vender.
+    texto = limpiar(datos.get('fecha_viaje'))
+    if texto == original['fecha_viaje']:
+        valores['fecha_viaje'] = texto
+    else:
+        ok, resultado = validar_fecha(texto)
+        valores['fecha_viaje'] = resultado if ok else texto
+        if not ok:
+            errores['fecha_viaje'] = resultado
+
+    ok, resultado = validar_asiento(datos.get('asiento'))
+    valores['asiento'] = resultado if ok else limpiar(datos.get('asiento'))
+    if not ok:
+        errores['asiento'] = resultado
+
+    # el asiento no puede ser de OTRO boleto de la misma corrida ese dia
+    # (el suyo propio si, por eso se le pasa el id para que no se cuente)
+    if not errores and base_datos.asiento_de_otro(
+            valores['asiento'], valores['fecha_viaje'], parada['ruta'], original['id']):
+        errores['asiento'] = (f'El asiento {valores["asiento"]} ya es de otro boleto '
+                              f'de la corrida a {base_datos.nombre_de_ruta(parada["ruta"])} ese dia.')
+
+    return valores, errores
+
+
+# --- Las cuentas de usuario ---
+
+# minusculas sin acentos, numeros, punto, guion y guion bajo; nada de espacios
+USUARIO_VALIDO = re.compile(r'^[a-z0-9._-]{3,20}$')
+MINIMO_CONTRASENA = 8
+
+
+def validar_usuario(texto):
+    usuario = limpiar(texto).lower()
+    if not usuario:
+        return False, 'Escribe el nombre de usuario.'
+    if not USUARIO_VALIDO.match(usuario):
+        return False, ('El usuario lleva de 3 a 20 letras sin acentos, numeros, punto o '
+                       'guion, y sin espacios.')
+    return True, usuario
+
+
+def validar_nombre(texto):  # el nombre de la persona: las mismas reglas que el del pasajero
+    nombre = limpiar(texto)
+    if not nombre:
+        return False, 'Escribe el nombre de la persona.'
+    if len(nombre) < 3:
+        return False, 'El nombre debe tener al menos 3 letras.'
+    if len(nombre) > 60:
+        return False, 'El nombre es demasiado largo (maximo 60 letras).'
+    if not LETRAS.match(nombre):
+        return False, 'El nombre solo puede llevar letras y espacios.'
+    return True, nombre.title()
+
+
+def validar_contrasena(contrasena, repetida):
+    # la contrasena no se "limpia": un espacio a la orilla tambien cuenta
+    contrasena = str(contrasena or '')
+    if len(contrasena) < MINIMO_CONTRASENA:
+        return False, f'La contrasena debe tener por lo menos {MINIMO_CONTRASENA} caracteres.'
+    if len(contrasena) > 128:
+        return False, 'La contrasena es demasiado larga (maximo 128 caracteres).'
+    if contrasena != str(repetida or ''):
+        return False, 'Las dos contrasenas no son iguales.'
+    return True, contrasena
+
+
+def validar_perfil(texto):
+    perfil = limpiar(texto).lower()
+    if perfil not in base_datos.PERFILES:
+        return False, 'Escoge el perfil de la cuenta.'
+    return True, perfil
+
+
+def validar_cuenta_nueva(datos, con_perfil=True):
+    # con_perfil=False es el primer arranque: ahi la cuenta siempre es de admin
+    valores = {}
+    errores = {}
+
+    ok, resultado = validar_usuario(datos.get('usuario'))
+    valores['usuario'] = resultado if ok else limpiar(datos.get('usuario'))
+    if not ok:
+        errores['usuario'] = resultado
+
+    ok, resultado = validar_nombre(datos.get('nombre'))
+    valores['nombre'] = resultado if ok else limpiar(datos.get('nombre'))
+    if not ok:
+        errores['nombre'] = resultado
+
+    if con_perfil:
+        ok, resultado = validar_perfil(datos.get('perfil'))
+        valores['perfil'] = resultado if ok else limpiar(datos.get('perfil'))
+        if not ok:
+            errores['perfil'] = resultado
+    else:
+        valores['perfil'] = 'admin'
+
+    ok, resultado = validar_contrasena(datos.get('contrasena'), datos.get('repetir'))
+    valores['contrasena'] = resultado if ok else ''  # nunca se regresa al formulario
+    if not ok:
+        errores['contrasena'] = resultado
+
+    return valores, errores
+
+
+def validar_edicion_de_cuenta(datos):
+    # Nombre y perfil; la contrasena solo si se escribio una nueva. El nombre
+    # de usuario no se cambia: es lo que queda guardado en los boletos.
+    valores = {}
+    errores = {}
+
+    ok, resultado = validar_nombre(datos.get('nombre'))
+    valores['nombre'] = resultado if ok else limpiar(datos.get('nombre'))
+    if not ok:
+        errores['nombre'] = resultado
+
+    ok, resultado = validar_perfil(datos.get('perfil'))
+    valores['perfil'] = resultado if ok else limpiar(datos.get('perfil'))
+    if not ok:
+        errores['perfil'] = resultado
+
+    valores['contrasena'] = ''
+    if datos.get('contrasena') or datos.get('repetir'):  # en blanco: se queda la de antes
+        ok, resultado = validar_contrasena(datos.get('contrasena'), datos.get('repetir'))
+        if ok:
+            valores['contrasena'] = resultado
+        else:
+            errores['contrasena'] = resultado
+
+    return valores, errores

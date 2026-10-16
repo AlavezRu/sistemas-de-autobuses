@@ -398,7 +398,10 @@ label {
 }
 
 input[type="date"],
-input[type="text"] {
+input[type="text"],
+input[type="password"],
+input[type="number"],
+select {
     width: 100%;
     padding: 14px 16px;
     border-radius: 10px;
@@ -410,7 +413,10 @@ input[type="text"] {
 }
 
 input[type="date"]:focus,
-input[type="text"]:focus {
+input[type="text"]:focus,
+input[type="password"]:focus,
+input[type="number"]:focus,
+select:focus {
     outline: none;
     border-color: #9c6034;
     box-shadow: 0 0 0 3px rgba(156, 96, 52, 0.2);
@@ -701,6 +707,177 @@ tfoot td {  /* el renglon del total cobrado */
     padding: 30px;
 }
 
+/* --- El login y las cuentas --- */
+
+/* Quien esta adentro, a la derecha de la cabecera */
+.cuenta {
+    margin-left: auto;   /* se empuja hasta la orilla derecha de la marca */
+    display: flex;
+    align-items: center;
+    gap: 14px;
+}
+
+.cuenta-datos {
+    display: flex;
+    flex-direction: column;
+    align-items: flex-end;
+    gap: 3px;
+}
+
+.cuenta-datos b {
+    color: #5a3a22;
+    font-size: 14px;
+}
+
+/* La etiqueta del perfil: cafe fuerte el admin, verde el vendedor */
+.perfil {
+    display: inline-block;
+    padding: 2px 10px;
+    border-radius: 999px;
+    font-size: 11px;
+    font-weight: 700;
+    letter-spacing: 0.5px;
+    color: #ffffff;
+}
+
+.perfil-admin    { background: linear-gradient(135deg, #9c6034, #5a3a22); }
+.perfil-vendedor { background: linear-gradient(135deg, #7a9c4f, #4f6e2e); }
+
+.boton-salir {
+    padding: 8px 16px;
+    border: 2px solid #c9a67c;
+    border-radius: 8px;
+    background-color: #f3e7d5;
+    color: #8b6b45;
+    font-size: 13px;
+    font-weight: 700;
+    cursor: pointer;
+    transition: background 0.2s, color 0.2s;
+}
+
+.boton-salir:hover {
+    background-color: #e9dac2;
+    color: #5a3a22;
+}
+
+/* Los avisos que deja una pagina antes de mandar a otra */
+.aviso {
+    padding: 14px 20px;
+    border-radius: 10px;
+    margin-bottom: 20px;
+    font-weight: 600;
+    animation: aparecer 0.45s ease;
+}
+
+.aviso-listo {
+    background-color: #e6edd8;
+    color: #4f6e2e;
+    border-left: 6px solid #7a9c4f;
+}
+
+.aviso-error {
+    background-color: #f7e0d9;
+    color: #a5301b;
+    border-left: 6px solid #d9563c;
+}
+
+/* La tarjeta angosta y centrada de entrar, del primer arranque y de los avisos */
+.tarjeta-entrar {
+    max-width: 460px;
+    margin-left: auto;
+    margin-right: auto;
+}
+
+label.separado {
+    margin-top: 16px;
+}
+
+.nota-campo {
+    color: #8b6b45;
+    font-size: 12px;
+    margin-top: 6px;
+}
+
+/* Los formularios de las cuentas y de corregir boletos: dos columnas */
+.formulario-cuenta {
+    display: grid;
+    grid-template-columns: repeat(2, 1fr);
+    gap: 18px;
+}
+
+.columna-completa {
+    grid-column: 1 / -1;
+}
+
+.formulario-cuenta .boton {
+    margin-top: 4px;
+}
+
+.opciones-perfil {
+    display: grid;
+    grid-template-columns: repeat(2, 1fr);
+    gap: 10px;
+}
+
+label.opcion-perfil {
+    display: flex;
+    align-items: flex-start;
+    gap: 10px;
+    margin: 0;
+    padding: 12px 14px;
+    border: 2px solid #c9a67c;
+    border-radius: 10px;
+    background-color: #fbf6ef;
+    color: #8b6b45;
+    font-size: 13px;
+    font-weight: 400;
+    cursor: pointer;
+}
+
+label.opcion-perfil b {
+    color: #5a3a22;
+}
+
+label.opcion-perfil input {
+    margin-top: 2px;
+    accent-color: #9c6034;
+}
+
+.dato-fijo {  /* un dato que se ve pero no se cambia, como el usuario */
+    padding: 14px 16px;
+    border-radius: 10px;
+    background-color: #f3e7d5;
+    color: #5a3a22;
+    font-size: 16px;
+    font-weight: 600;
+}
+
+/* Los botones de cada renglon de una tabla */
+td.acciones {
+    white-space: nowrap;
+}
+
+td.acciones form {
+    display: inline;
+}
+
+.boton-editar {
+    display: inline-block;
+    margin-right: 6px;
+    padding: 8px 14px;
+    border-radius: 8px;
+    color: #ffffff;
+    font-size: 13px;
+    font-weight: bold;
+    text-decoration: none;
+    background: linear-gradient(135deg, #5b82b5, #32557f);
+    transition: box-shadow 0.15s;
+}
+
+.boton-editar:hover {
+    box-shadow: 0 4px 10px rgba(91, 130, 181, 0.5);
+}
+
 /* --- El corte de caja --- */
 
 /* Los filtros: cada opcion en su tarjeta, acomodadas de lado a lado */
@@ -907,7 +1084,12 @@ tr.sin-ventas td {  /* las paradas que no movieron nada en el periodo */
     .rutas,
     .paradas,
     .filtros,
+    .formulario-cuenta,
+    .opciones-perfil,
     .resumen { grid-template-columns: 1fr; }
+    .marca { flex-wrap: wrap; }
+    .cuenta { margin-left: 0; width: 100%; justify-content: space-between; }
+    .cuenta-datos { align-items: flex-start; }
     .filtro-botones { flex-direction: column; }
     .menu { flex-wrap: wrap; }
     .menu a { flex: 1 0 100%; }

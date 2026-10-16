@@ -1,6 +1,10 @@
 # la base de datos se crea sola al arrancar, no se sube
 boletos.db
 
+# la llave que firma las sesiones del login: se crea sola y NUNCA se sube,
+# con ella cualquiera podria hacerse pasar por el admin
+.clave_secreta
+
 # archivos que genera Python
 __pycache__/
 *.pyc

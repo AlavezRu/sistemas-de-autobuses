@@ -44,6 +44,61 @@ def validar_fecha(fecha_viaje):
     return True, dia.strftime(FORMATO_VIAJE)
 
 
+def validar_dia(texto):
+    # Una fecha cualquiera, sin el limite de validar_fecha: el corte de caja
+    # mira hacia atras, a dias que ya pasaron.
+    texto = limpiar(texto)
+    if not texto:
+        return False, 'Escribe la fecha.'
+    try:
+        dia = datetime.strptime(texto, FORMATO_VIAJE).date()
+    except ValueError:
+        return False, 'La fecha no tiene un formato valido.'
+    return True, dia.strftime(FORMATO_VIAJE)
+
+
+MODOS_DEL_CORTE = ('todo', 'dia', 'periodo')
+
+
+def validar_corte(datos):
+    # Los filtros del corte de caja: que tanto se mira (todo, un dia o un
+    # periodo), las fechas y la ruta. Devuelve (filtros, errores).
+    modo = limpiar(datos.get('modo')).lower()
+    if modo not in MODOS_DEL_CORTE:
+        modo = 'todo'  # lo que no se entiende se trata como "todo"
+    filtros = {'modo': modo, 'dia': '', 'desde': '', 'hasta': '', 'ruta': ''}
+    errores = {}
+
+    clave = limpiar(datos.get('ruta')).lower()
+    if clave and clave != 'todas':  # vacio o "todas" es sin filtro de ruta
+        ok, resultado = validar_ruta(clave)
+        filtros['ruta'] = resultado if ok else clave
+        if not ok:
+            errores['ruta'] = resultado
+
+    if modo == 'dia':
+        ok, resultado = validar_dia(datos.get('dia'))
+        filtros['dia'] = resultado if ok else limpiar(datos.get('dia'))
+        if not ok:
+            errores['dia'] = resultado
+
+    if modo == 'periodo':
+        bien_desde, desde = validar_dia(datos.get('desde'))
+        filtros['desde'] = desde if bien_desde else limpiar(datos.get('desde'))
+        if not bien_desde:
+            errores['desde'] = desde
+
+        bien_hasta, hasta = validar_dia(datos.get('hasta'))
+        filtros['hasta'] = hasta if bien_hasta else limpiar(datos.get('hasta'))
+        if not bien_hasta:
+            errores['hasta'] = hasta
+
+        if bien_desde and bien_hasta and desde > hasta:
+            errores['hasta'] = 'La fecha de hasta no puede ser antes que la de desde.'
+
+    return filtros, errores
+
+
 def validar_ruta(clave):
     clave = limpiar(clave).lower()
     if not clave:

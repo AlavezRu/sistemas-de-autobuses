@@ -232,6 +232,31 @@ def cancelar_boleto(id_boleto):  # libera el asiento otra vez
         return cursor.rowcount > 0
 
 
+def boletos_para_corte(desde=None, hasta=None, ruta=None):
+    # Los boletos de un periodo, por fecha de viaje, y de una sola ruta si se
+    # pide. Las fechas se guardan como 2026-10-16, asi que se comparan de
+    # frente como texto y salen en orden. Lo que no se manda, no filtra.
+    condiciones = []
+    valores = []
+    if desde:
+        condiciones.append('fecha_viaje >= ?')
+        valores.append(desde)
+    if hasta:
+        condiciones.append('fecha_viaje <= ?')
+        valores.append(hasta)
+    if ruta:
+        condiciones.append('ruta = ?')
+        valores.append(ruta)
+    donde = ('WHERE ' + ' AND '.join(condiciones)) if condiciones else ''
+
+    with conectar() as conexion:
+        renglones = conexion.execute(
+            f'SELECT * FROM boletos {donde} '
+            'ORDER BY fecha_viaje ASC, ruta ASC, asiento ASC', valores
+        ).fetchall()
+    return [con_destino(renglon) for renglon in renglones]
+
+
 def contar_boletos():  # el numero que se muestra en la pagina de inicio
     with conectar() as conexion:
         return conexion.execute('SELECT COUNT(*) FROM boletos').fetchone()[0]

@@ -46,25 +46,57 @@ terminar se muestra el pase de abordar con el folio, el viaje, la corrida, el as
 pasaje, y en *Boletos vendidos* está la tabla con todas las ventas y el total cobrado, con
 opción de cancelar (el asiento vuelve a quedar libre).
 
+## Corte de caja
+
+En *Corte de caja* se saca lo vendido y se descarga en PDF. Se agrupa por la **fecha del
+viaje**, o sea por el día en que sale el autobús, no por el día en que se cobró el boleto.
+
+Los filtros son dos y se combinan:
+
+| Filtro | Opciones |
+|---|---|
+| Qué tanto | **Todo** · **Un día** · **Un periodo** (de una fecha a otra) |
+| Qué ruta | **Todas las rutas** · una sola de las tres |
+
+El corte trae tres bloques:
+
+1. **Resumen por día** — cada día con sus rutas, el subtotal del día y, al final, el total
+   del corte.
+2. **Desglose por parada** — cuántos boletos y cuánto dinero dejó cada uno de los 13 puntos.
+   Las paradas que no vendieron nada salen en gris, para que se vea cuáles no se movieron.
+3. **Detalle de boletos** — folio, pasajero, parada, corrida, asiento, fechas y pasaje, para
+   que el PDF sirva de comprobante.
+
+El botón *Descargar PDF* manda los mismos filtros que se ven en la pantalla, así que el
+archivo trae exactamente lo que se está mirando. El nombre del archivo lo dice:
+`corte-de-caja-tlaxiaco-2026-10-01-a-2026-10-31.pdf`.
+
+Los boletos cancelados no aparecen en el corte: al cancelar uno, el asiento se libera y el
+renglón se borra de la base.
+
 ## Archivos
 
 | Archivo | Para qué sirve |
 |---|---|
 | `Pagina.py` | La aplicación Flask y sus rutas |
+| `corte.py` | Suma el corte de caja y arma el PDF con fpdf2 |
 | `base_datos.py` | Las rutas con sus paradas y precios, y todo lo de SQLite: crear la tabla, guardar, consultar y cancelar boletos |
 | `validaciones.py` | Revisa la ruta, la parada, el nombre, la fecha y el asiento antes de guardarlos |
 | `templates/base.html` | La plantilla con la cabecera y el menú |
 | `templates/index.html` | Página de inicio y el cuadro de rutas, paradas y precios |
 | `templates/venta.html` | Los cinco pasos de la venta y el mapa del autobús |
 | `templates/boletos.html` | Tabla de los boletos vendidos y el total cobrado |
+| `templates/corte.html` | Los filtros del corte de caja y sus tres bloques |
 | `static/estilos.css` | Los estilos (paleta café) |
 
 ## Cómo ejecutarlo
 
 ```bash
-pip install flask
+pip install -r requirements.txt
 python Pagina.py
 ```
+
+Son dos librerías: **Flask** para la aplicación y **fpdf2** para el PDF del corte de caja.
 
 Después se abre <http://localhost:5000> en el navegador.
 
@@ -79,4 +111,6 @@ el repositorio.
 | `/venta` | Formulario de venta (ruta → parada → fecha → asiento → nombre) |
 | `/boletos` | Lista de los boletos vendidos |
 | `/cancelar/<id>` | Cancela un boleto y libera el asiento |
+| `/corte` | Corte de caja con sus filtros |
+| `/corte.pdf?modo=&dia=&desde=&hasta=&ruta=` | Descarga el corte en PDF con esos filtros |
 | `/api/asientos?fecha=&ruta=` | Devuelve en JSON qué asientos están libres ese día en esa corrida |

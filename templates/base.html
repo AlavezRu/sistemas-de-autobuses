@@ -30,6 +30,7 @@
                 <a href="{{ url_for('index') }}" class="{{ 'activo' if request.endpoint == 'index' }}">Inicio</a>
                 <a href="{{ url_for('venta') }}" class="{{ 'activo' if request.endpoint == 'venta' }}">Vender boleto</a>
                 <a href="{{ url_for('boletos') }}" class="{{ 'activo' if request.endpoint == 'boletos' }}">Boletos vendidos</a>
+                <a href="{{ url_for('corte_de_caja') }}" class="{{ 'activo' if request.endpoint == 'corte_de_caja' }}">Corte de caja</a>
             </nav>
         </header>
 

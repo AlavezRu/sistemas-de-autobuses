@@ -701,6 +701,111 @@ tfoot td {  /* el renglon del total cobrado */
     padding: 30px;
 }
 
+/* --- El corte de caja --- */
+
+/* Los filtros: cada opcion en su tarjeta, acomodadas de lado a lado */
+.filtros {
+    display: grid;
+    grid-template-columns: repeat(2, 1fr);
+    gap: 14px;
+}
+
+.filtro {
+    background-color: #f3e7d5;
+    border-radius: 10px;
+    padding: 14px 16px;
+    border-left: 6px solid #9c6034;
+}
+
+.filtro-opcion {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    margin: 0 0 8px;
+    cursor: pointer;
+    color: #5a3a22;
+    font-size: 15px;
+    font-weight: 600;
+}
+
+.filtro-opcion input {
+    width: 18px;
+    height: 18px;
+    accent-color: #9c6034;
+    cursor: pointer;
+}
+
+.filtro label {
+    margin-bottom: 8px;
+}
+
+.filtro input[type="date"],
+.filtro select {
+    width: 100%;
+    padding: 10px 12px;
+    border: 2px solid #c9a67c;
+    border-radius: 8px;
+    background-color: #fbf6ef;
+    color: #5a3a22;
+    font-size: 15px;
+}
+
+.filtro-par {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}
+
+.filtro-par span {
+    color: #8b6b45;
+    font-size: 13px;
+}
+
+.nota-filtro {
+    color: #8b6b45;
+    font-size: 13px;
+}
+
+.filtro-botones {
+    grid-column: 1 / -1;   /* los botones ocupan el ancho de las dos columnas */
+    display: flex;
+    gap: 12px;
+}
+
+.filtro-botones .boton {
+    flex: 1;
+}
+
+/* Las tablas del corte */
+.titulo-bloque {
+    color: #5a3a22;
+    font-size: 17px;
+    margin: 25px 0 10px;
+    padding-bottom: 6px;
+    border-bottom: 2px solid #e3d5c0;
+}
+
+tr.renglon-dia td {  /* el renglon con la fecha, que abre cada bloque del dia */
+    background-color: #e9dac2;
+    color: #5a3a22;
+    font-size: 15px;
+    font-weight: 700;
+}
+
+tr.renglon-subtotal td {
+    color: #9c6034;
+    font-weight: 700;
+    border-bottom: 2px solid #c9a67c;
+}
+
+tr.sin-ventas td {  /* las paradas que no movieron nada en el periodo */
+    color: #a89177;
+}
+
+.sangria {
+    padding-left: 26px !important;  /* las rutas van metidas debajo de su dia */
+}
+
 /* El recuadro que pregunta antes de guardar la venta: el velo oscurece la
    pagina y encima queda el boleto con sus dos botones */
 .velo {
@@ -801,7 +906,9 @@ tfoot td {  /* el renglon del total cobrado */
     .datos-linea,
     .rutas,
     .paradas,
+    .filtros,
     .resumen { grid-template-columns: 1fr; }
+    .filtro-botones { flex-direction: column; }
     .menu { flex-wrap: wrap; }
     .menu a { flex: 1 0 100%; }
     .pase { flex-direction: column; }

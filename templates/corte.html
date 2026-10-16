@@ -1,0 +1,189 @@
+{% extends 'base.html' %}
+
+{% block titulo %}Corte de caja — Venta de Boletos de Autobús{% endblock %}
+
+{% block contenido %}
+<!-- Los filtros: que tanto se mira y de que ruta. El formulario va por GET para
+     que los filtros queden en la direccion y se pueda compartir o recargar -->
+<section class="panel">
+    <div class="encabezado-panel">
+        <h2>Corte de caja</h2>
+        <span class="enlace en-linea">Por fecha de viaje</span>
+    </div>
+    <p class="bienvenida">Lo vendido de un día, de un periodo o de todo, de las tres rutas o de
+        una sola. Se agrupa por el día en que sale el autobús.</p>
+
+    <form method="GET" action="{{ url_for('corte_de_caja') }}" class="filtros">
+        <div class="filtro">
+            <label class="filtro-opcion">
+                <input type="radio" name="modo" value="todo"
+                       {{ 'checked' if filtros.modo == 'todo' }}>
+                <span>Todo</span>
+            </label>
+            <p class="nota-filtro">Todos los boletos, sin importar la fecha.</p>
+        </div>
+
+        <div class="filtro">
+            <label class="filtro-opcion">
+                <input type="radio" name="modo" value="dia"
+                       {{ 'checked' if filtros.modo == 'dia' }}>
+                <span>Un día</span>
+            </label>
+            <input type="date" name="dia" value="{{ filtros.dia }}" aria-label="El día del corte">
+            {% if errores.dia %}<p class="error">{{ errores.dia }}</p>{% endif %}
+        </div>
+
+        <div class="filtro">
+            <label class="filtro-opcion">
+                <input type="radio" name="modo" value="periodo"
+                       {{ 'checked' if filtros.modo == 'periodo' }}>
+                <span>Un periodo</span>
+            </label>
+            <div class="filtro-par">
+                <input type="date" name="desde" value="{{ filtros.desde }}" aria-label="Desde">
+                <span>a</span>
+                <input type="date" name="hasta" value="{{ filtros.hasta }}" aria-label="Hasta">
+            </div>
+            {% if errores.desde %}<p class="error">{{ errores.desde }}</p>{% endif %}
+            {% if errores.hasta %}<p class="error">{{ errores.hasta }}</p>{% endif %}
+        </div>
+
+        <div class="filtro">
+            <label for="ruta">Ruta</label>
+            <select name="ruta" id="ruta">
+                <option value="todas" {{ 'selected' if not filtros.ruta }}>Todas las rutas</option>
+                {% for ruta in rutas %}
+                <option value="{{ ruta.clave }}"
+                        {{ 'selected' if filtros.ruta == ruta.clave }}>{{ ruta.destino }}</option>
+                {% endfor %}
+            </select>
+            {% if errores.ruta %}<p class="error">{{ errores.ruta }}</p>{% endif %}
+        </div>
+
+        <div class="filtro-botones">
+            <!-- el mismo formulario sirve para los dos botones: el de PDF nada
+                 mas cambia a donde se manda, con formaction -->
+            <button type="submit" class="boton">Ver el corte</button>
+            <button type="submit" class="boton-suave"
+                    formaction="{{ url_for('corte_pdf') }}">Descargar PDF</button>
+        </div>
+    </form>
+</section>
+
+{% if reporte %}
+<section class="panel">
+    <div class="encabezado-panel">
+        <h2>{{ reporte.titulo }}</h2>
+        <span class="enlace en-linea">{{ reporte.ruta }}</span>
+    </div>
+
+    {% if reporte.boletos %}
+    <div class="datos-linea">
+        <div><b>{{ reporte.cantidad }}</b><p>Boletos</p></div>
+        <div><b>{{ reporte.total|pesos }}</b><p>Total cobrado</p></div>
+        <div><b>{{ reporte.resumen|length }}</b><p>Días con ventas</p></div>
+        <div><b>{{ reporte.paradas|selectattr('cantidad')|list|length }}</b><p>Paradas con ventas</p></div>
+    </div>
+
+    <!-- Resumen: cada día con sus rutas y el subtotal del día -->
+    <h3 class="titulo-bloque">Resumen por día</h3>
+    <table>
+        <thead>
+            <tr>
+                <th>Día y ruta</th>
+                <th>Boletos</th>
+                <th>Total</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for dia in reporte.resumen %}
+            <tr class="renglon-dia">
+                <td colspan="3">{{ dia.fecha|bonita }}</td>
+            </tr>
+            {% for ruta in dia.rutas %}
+            <tr>
+                <td class="sangria">Ruta {{ ruta.destino }}</td>
+                <td>{{ ruta.cantidad }}</td>
+                <td><b class="txt-precio">{{ ruta.total|pesos }}</b></td>
+            </tr>
+            {% endfor %}
+            <tr class="renglon-subtotal">
+                <td class="sangria">Subtotal del día</td>
+                <td>{{ dia.cantidad }}</td>
+                <td>{{ dia.total|pesos }}</td>
+            </tr>
+            {% endfor %}
+        </tbody>
+        <tfoot>
+            <tr>
+                <td>TOTAL DEL CORTE</td>
+                <td>{{ reporte.cantidad }}</td>
+                <td><b class="txt-precio">{{ reporte.total|pesos }}</b></td>
+            </tr>
+        </tfoot>
+    </table>
+
+    <!-- Cuanto dejo cada punto del camino; las que no vendieron salen en gris -->
+    <h3 class="titulo-bloque">Desglose por parada</h3>
+    <table>
+        <thead>
+            <tr>
+                <th>Parada</th>
+                <th>Corrida</th>
+                <th>Pasaje</th>
+                <th>Boletos</th>
+                <th>Total</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for parada in reporte.paradas %}
+            <tr class="{{ 'sin-ventas' if not parada.cantidad }}">
+                <td>{{ parada.nombre }}</td>
+                <td>{{ parada.corrida }}</td>
+                <td>{{ parada.precio|pesos }}</td>
+                <td>{{ parada.cantidad }}</td>
+                <td><b class="txt-precio">{{ parada.total|pesos }}</b></td>
+            </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+
+    <!-- Boleto por boleto, para que el corte sirva de comprobante -->
+    <h3 class="titulo-bloque">Detalle de boletos</h3>
+    <table>
+        <thead>
+            <tr>
+                <th>Folio</th>
+                <th>Pasajero</th>
+                <th>Se baja en</th>
+                <th>Corrida</th>
+                <th>Asiento</th>
+                <th>Fecha del viaje</th>
+                <th>Vendido el</th>
+                <th>Pasaje</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for boleto in reporte.boletos %}
+            <tr>
+                <td>{{ '%04d'|format(boleto.id) }}</td>
+                <td>{{ boleto.pasajero }}</td>
+                <td>{{ boleto.destino }}</td>
+                <td>{{ boleto.corrida }}</td>
+                <td><b class="txt-asiento">{{ boleto.asiento }}</b></td>
+                <td>{{ boleto.fecha_viaje|bonita }}</td>
+                <td>{{ boleto.fecha_venta }}</td>
+                <td><b class="txt-precio">{{ boleto.precio|pesos }}</b></td>
+            </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+
+    <p class="nota">Generado el {{ reporte.momento }}. Los boletos cancelados no aparecen,
+        porque al cancelarlos el asiento se libera y el boleto se borra.</p>
+    {% else %}
+    <p class="vacio">No hubo ventas con estos filtros.</p>
+    {% endif %}
+</section>
+{% endif %}
+{% endblock %}
